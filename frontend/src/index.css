@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --green-900: #1a2e22;
+  --green-700: #2d6a4f;
+  --green-500: #40916c;
+  --green-200: #b7e4c7;
+  --green-50: #f0f7f4;
+  --gold: #c9952e;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: "DM Sans", system-ui, sans-serif;
+  color: var(--green-900);
+  background: var(--green-50);
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Lora", serif;
+  font-weight: 600;
+}
+
+button {
+  font-family: inherit;
+}
