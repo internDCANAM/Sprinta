@@ -1,0 +1,286 @@
+// Sprintaiso — kundportal
+// Datamodell enligt specifikation i session 1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  SUPERADMIN
+}
+
+enum DealType {
+  SLUTAVVERKNING
+  GALLRING
+  ENERGIVIRKE
+  OVRIGT
+}
+
+enum DealStatus {
+  PLANERAD
+  PAGAENDE
+  KLAR
+  FAKTURERAD
+  AVSLUTAD
+}
+
+enum DealEventType {
+  AVTAL_SIGNERAT
+  AVVERKNING_START
+  AVVERKNING_SLUT
+  MATBESKED
+  UTBETALNING
+  OVRIGT
+}
+
+enum DocumentType {
+  AVTAL
+  AVRAKNING
+  MATBESKED
+  STANFORD
+  OVRIGT
+}
+
+enum MessageSenderRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum PaymentStatus {
+  PLANERAD
+  GENOMFORD
+  MISSLYCKAD
+}
+
+// ---------- Models ----------
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  name         String
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  customer      Customer?
+  assignedDeals Deal[]      @relation("AssignedAdmin")
+  createdEvents DealEvent[]
+  uploadedDocs  Document[]
+  sentMessages  Message[]
+  auditEntries  AuditLog[]
+
+  @@map("users")
+}
+
+model Customer {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @unique @map("user_id") @db.Uuid
+  personalIdEncrypted  String?   @map("personal_id_encrypted")
+  addressStreet        String?   @map("address_street")
+  addressPostal        String?   @map("address_postal")
+  addressCity          String?   @map("address_city")
+  phone                String?
+  bankAccountMasked    String?   @map("bank_account_masked")
+  bankAccountEncrypted String?   @map("bank_account_encrypted")
+  bankAccountUpdatedAt DateTime? @map("bank_account_updated_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[]
+  deals      Deal[]
+  documents  Document[]
+  payments   Payment[]
+
+  @@map("customers")
+}
+
+model Property {
+  id           String   @id @default(uuid()) @db.Uuid
+  customerId   String   @map("customer_id") @db.Uuid
+  name         String
+  cadastralId  String   @map("cadastral_id")
+  municipality String
+  areaHa       Decimal  @map("area_ha") @db.Decimal(10, 2)
+  geojson      Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deals    Deal[]
+
+  @@index([customerId])
+  @@map("properties")
+}
+
+model Deal {
+  id                String     @id @default(uuid()) @db.Uuid
+  customerId        String     @map("customer_id") @db.Uuid
+  propertyId        String?    @map("property_id") @db.Uuid
+  externalId        String     @unique @map("external_id")
+  title             String
+  dealType          DealType   @map("deal_type")
+  status            DealStatus
+  estimatedGrossSek Decimal?   @map("estimated_gross_sek") @db.Decimal(14, 2)
+  finalGrossSek     Decimal?   @map("final_gross_sek") @db.Decimal(14, 2)
+  totalCostsSek     Decimal    @default(0) @map("total_costs_sek") @db.Decimal(14, 2)
+  assignedAdminId   String?    @map("assigned_admin_id") @db.Uuid
+  syncedAt          DateTime?  @map("synced_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property      Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  assignedAdmin User?        @relation("AssignedAdmin", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  events        DealEvent[]
+  timberPosts   TimberPost[]
+  costs         DealCost[]
+  documents     Document[]
+  messages      Message[]
+  payments      Payment[]
+
+  @@index([customerId])
+  @@index([propertyId])
+  @@index([status])
+  @@map("deals")
+}
+
+model DealEvent {
+  id          String        @id @default(uuid()) @db.Uuid
+  dealId      String        @map("deal_id") @db.Uuid
+  eventType   DealEventType @map("event_type")
+  label       String
+  plannedDate DateTime?     @map("planned_date")
+  actualDate  DateTime?     @map("actual_date")
+  note        String?
+  createdBy   String        @map("created_by") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  deal    Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([dealId])
+  @@map("deal_events")
+}
+
+model TimberPost {
+  id                String   @id @default(uuid()) @db.Uuid
+  dealId            String   @map("deal_id") @db.Uuid
+  assortment        String
+  volumeM3          Decimal  @map("volume_m3") @db.Decimal(12, 3)
+  pricePerM3Sek     Decimal  @map("price_per_m3_sek") @db.Decimal(10, 2)
+  grossSek          Decimal  @map("gross_sek") @db.Decimal(14, 2)
+  measurementSource String?  @map("measurement_source")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@map("timber_posts")
+}
+
+model DealCost {
+  id        String   @id @default(uuid()) @db.Uuid
+  dealId    String   @map("deal_id") @db.Uuid
+  costType  String   @map("cost_type")
+  amountSek Decimal  @map("amount_sek") @db.Decimal(14, 2)
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@map("deal_costs")
+}
+
+model Document {
+  id         String       @id @default(uuid()) @db.Uuid
+  dealId     String?      @map("deal_id") @db.Uuid
+  customerId String       @map("customer_id") @db.Uuid
+  docType    DocumentType @map("doc_type")
+  filename   String
+  storageKey String       @map("storage_key")
+  mimeType   String       @map("mime_type")
+  sizeBytes  Int          @map("size_bytes")
+  uploadedBy String       @map("uploaded_by") @db.Uuid
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  deal     Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  uploader User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([dealId])
+  @@index([customerId])
+  @@map("documents")
+}
+
+model Message {
+  id          String            @id @default(uuid()) @db.Uuid
+  dealId      String            @map("deal_id") @db.Uuid
+  senderId    String            @map("sender_id") @db.Uuid
+  senderRole  MessageSenderRole @map("sender_role")
+  body        String
+  attachments Json              @default("[]")
+  readAt      DateTime?         @map("read_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Restrict)
+
+  @@index([dealId])
+  @@map("messages")
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  dealId            String        @map("deal_id") @db.Uuid
+  customerId        String        @map("customer_id") @db.Uuid
+  amountSek         Decimal       @map("amount_sek") @db.Decimal(14, 2)
+  paymentDate       DateTime      @map("payment_date")
+  status            PaymentStatus
+  reference         String?
+  bankAccountMasked String        @map("bank_account_masked")
+  externalPaymentId String?       @map("external_payment_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  deal     Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([customerId])
+  @@map("payments")
+}
+
+// TODO: Audit-logg skrivs inte automatiskt ännu — implementeras som
+// Prisma-extension eller middleware i kommande session när API-endpoints
+// byggs ut. Tabellen finns här så att framtida skrivningar har en plats.
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  tableName    String   @map("table_name")
+  recordId     String   @map("record_id") @db.Uuid
+  changedBy    String   @map("changed_by") @db.Uuid
+  fieldName    String   @map("field_name")
+  oldValueHash String?  @map("old_value_hash")
+  newValueHash String?  @map("new_value_hash")
+  ipAddress    String   @map("ip_address")
+  userAgent    String   @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [changedBy], references: [id], onDelete: Restrict)
+
+  @@index([tableName, recordId])
+  @@index([changedBy])
+  @@map("audit_log")
+}
