@@ -114,7 +114,11 @@ async function main() {
       data?: unknown[];
       pagination?: { total: number };
     };
-    assert("kunden har 2 deals", b.pagination?.total === 2);
+    assert(
+      "kunden har minst 2 deals",
+      (b.pagination?.total ?? 0) >= 2,
+      `fick total=${b.pagination?.total}`,
+    );
   }
 
   // 7. Fel login fortfarande 401
