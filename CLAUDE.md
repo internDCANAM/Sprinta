@@ -31,11 +31,7 @@ view documents, message admins, and monitor payments.
 
 Cross-package types and enums live in `shared/src/`, imported as `@sprintaiso/shared`.
 
-- `enums.ts` — domain enums as `as const` objects with matching type aliases; values mirror the database schema
 - `types.ts` — DTOs and API response shapes as `interface`s; these are the authoritative shapes for all API boundaries
-
-Enum values (`SLUTAVVERKNING`, `PAGAENDE`, `AVVERKNING_START`, `AVTAL_SIGNERAT`, etc.) are Swedish domain
-terms tied to the database schema and external systems — never rename or translate them.
 
 ## Auth architecture
 

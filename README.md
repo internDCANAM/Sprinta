@@ -128,7 +128,7 @@ Prettier formats code automatically on save — indentation, quotes, semicolons,
 
 Config lives in `.prettierrc` at the repo root. All editors read the same file, so formatting is consistent regardless of who commits.
 
-**VS Code:** install the [Prettier extension](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) (`esbenp.prettier-vscode`). Format on save is already configured in `.vscode/settings.json`.
+**VS Code:** install the [Prettier extension](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) (`esbenp.prettier-vscode`).
 
 **IntelliJ / WebStorm:** Settings → Languages & Frameworks → JavaScript → Prettier → set the Prettier package path to `<project>/node_modules/prettier` and enable "Run on save".
 

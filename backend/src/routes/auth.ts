@@ -1,23 +1,17 @@
-import { Router } from "express";
-import bcrypt from "bcrypt";
-import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
-import { env } from "../config/env.js";
-import { validate } from "../middleware/validate.js";
-import { loginRateLimiter } from "../middleware/rateLimit.js";
-import { asyncHandler } from "../utils/async.js";
-import { unauthorized } from "../utils/errors.js";
-import {
-  REFRESH_COOKIE_MAX_AGE_MS,
-  REFRESH_COOKIE_NAME,
-  isRefreshTokenValid,
-  revokeRefreshToken,
-  signAccessToken,
-  signRefreshToken,
-  storeRefreshToken,
-  verifyRefreshToken,
-} from "../utils/auth.js";
-import { logger } from "../lib/logger.js";
+import bcrypt from 'bcrypt';
+import { Router } from 'express';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma.js';
+import { validate } from '../middleware/validate.js';
+import { loginRateLimiter } from '../middleware/rateLimit.js';
+import { asyncHandler } from '../utils/async.js';
+import { unauthorized } from '../utils/errors.js';
+import { REFRESH_COOKIE_MAX_AGE_MS,REFRESH_COOKIE_NAME,isRefreshTokenValid,revokeRefreshToken,
+        signAccessToken,signRefreshToken,storeRefreshToken,verifyRefreshToken } 
+        from '../utils/auth.js';
+import { logger } from '../lib/logger.js';
+import { NodeEnv } from '../config/enums.js';
+import { env } from '../config/env.js';
 
 export const authRouter = Router();
 
@@ -29,15 +23,15 @@ const LoginSchema = z.object({
 function refreshCookieOptions() {
   return {
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/api/v1/auth",
+    secure: env.NODE_ENV === NodeEnv.PRODUCTION,
+    sameSite: 'lax' as const,
+    path: '/api/v1/auth',
     maxAge: REFRESH_COOKIE_MAX_AGE_MS,
   };
 }
 
 authRouter.post(
-  "/login",
+  '/login',
   loginRateLimiter,
   validate(LoginSchema),
   asyncHandler(async (req, res) => {
@@ -49,12 +43,12 @@ authRouter.post(
     });
 
     if (!user || !user.isActive) {
-      throw unauthorized("Felaktig e-post eller lösenord");
+      throw unauthorized('Invalid email or password');
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
-      throw unauthorized("Felaktig e-post eller lösenord");
+      throw unauthorized('Invalid email or password');
     }
 
     const customerId = user.customer?.id ?? null;
@@ -68,7 +62,7 @@ authRouter.post(
     await storeRefreshToken(user.id, tokenId);
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions());
-    logger.info("Inloggning lyckades", { userId: user.id, role: user.role });
+    logger.info('Login successful', { userId: user.id, role: user.role });
 
     res.json({
       accessToken,
@@ -80,32 +74,31 @@ authRouter.post(
         customerId,
       },
     });
-  }),
+  })
 );
 
 authRouter.post(
-  "/refresh",
+  '/refresh',
   asyncHandler(async (req, res) => {
-    const token = req.cookies?.[REFRESH_COOKIE_NAME];
-    if (!token) throw unauthorized("Refresh-token saknas");
+    const token = req.cookies[REFRESH_COOKIE_NAME] as string | undefined;
+    if (!token) throw unauthorized('Refresh token missing');
 
     let payload;
     try {
       payload = verifyRefreshToken(token);
     } catch {
-      throw unauthorized("Ogiltigt refresh-token");
+      throw unauthorized('Invalid refresh token');
     }
 
     const valid = await isRefreshTokenValid(payload.userId, payload.tokenId);
-    if (!valid) throw unauthorized("Refresh-token har återkallats");
+    if (!valid) throw unauthorized('Refresh token revoked');
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       include: { customer: { select: { id: true } } },
     });
-    if (!user || !user.isActive) throw unauthorized("Användare inaktiv");
+    if (!user || !user.isActive) throw unauthorized('User inactive');
 
-    // Rotera: återkalla gammal, utfärda ny.
     await revokeRefreshToken(payload.userId, payload.tokenId);
     const { token: newRefresh, tokenId: newTokenId } = signRefreshToken(user.id);
     await storeRefreshToken(user.id, newTokenId);
@@ -119,22 +112,21 @@ authRouter.post(
 
     res.cookie(REFRESH_COOKIE_NAME, newRefresh, refreshCookieOptions());
     res.json({ accessToken });
-  }),
+  })
 );
 
 authRouter.post(
-  "/logout",
+  '/logout',
   asyncHandler(async (req, res) => {
-    const token = req.cookies?.[REFRESH_COOKIE_NAME];
+    const token = req.cookies[REFRESH_COOKIE_NAME] as string | undefined;
     if (token) {
       try {
         const payload = verifyRefreshToken(token);
         await revokeRefreshToken(payload.userId, payload.tokenId);
       } catch {
-        // Ignorera ogiltig/utgången — vi nollar cookien ändå.
       }
     }
-    res.clearCookie(REFRESH_COOKIE_NAME, { path: "/api/v1/auth" });
+    res.clearCookie(REFRESH_COOKIE_NAME, { path: '/api/v1/auth' });
     res.status(204).end();
-  }),
+  })
 );

@@ -23,7 +23,6 @@ Rules for all AI coding agents working in this repository.
 - Write all comments in English
 - The initial codebase contains Swedish prose comments — do not follow that pattern
 - If you edit a file that contains Swedish comments, translate the affected block to English before finishing; never leave a file with mixed comment languages
-- Domain-value identifiers (`DealStatus.PAGAENDE`, `DealType.SLUTAVVERKNING`, `DealEventType.AVVERKNING_START`, etc.) are Swedish by design and match the database schema — do not translate or rename them
 
 ## User-facing strings
 
