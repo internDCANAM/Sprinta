@@ -1,18 +1,31 @@
 # todo
 
-Concrete tasks live in GitHub Issues. This file is for decisions that need team alignment
-before work can start, and rough ideas not yet ready to be scoped.
+GitHub Issues are for anything concrete enough to work on — bugs, features, UI work.
+This file is for decisions that need team alignment before work can start, and ideas
+that need feedback before they're ready to be scoped as an Issue.
 
 ## Pending decisions
 
-- [ ] **Prettier config** — agree on print width (80 or 100), quotes (single),
-      semicolons. Install `prettier` + `husky` + `lint-staged` once decided.
+- [x] **Prettier config** — agree on print width (80 or 100), quotes (single),
+      semicolons.
 - [x] **AGENTS.md** — agree on agent rules before committing the file.
 - [x] **Dependabot, Snyk, or both** — Dependabot is free and catches outdated deps;
       Snyk adds vuln scanning. They complement each other but Dependabot alone is
       a reasonable starting point.
+- [x] **eslint-plugin-security** — scans for Node.js vulnerabilities.
+- [x] **eslint configurations** — relevant to ISO rules.
 - [ ] **Audit log retention** — decide how long messages and deals are kept in db logs
       before the schema and cleanup jobs can be written.
+- [ ] `REFRESH_TTL_SECONDS` / `JWT_REFRESH_TTL` synchronisation — either parse the TTL
+      string with ms to drive the Redis TTL, or lock the two to the same value in the
+      schema.
+- [ ] **Auth route error strings** — wire up t() from locale.ts in auth.ts (and verify 
+      all other routes do the same before launch).
+- [ ] **Introduce locale-based codebase** — migrate Swedish domain enum values
+      (`PAGAENDE`, `SLUTAVVERKNING`, `AVVERKNING_START`, etc.) to English identifiers
+      throughout source, shared types, and database schema. Requires coordinated
+      migration: Prisma schema rename + data migration + shared enums + all call sites.
+- [ ] **Writing tests** — ...
 
 ## Rough ideas
 

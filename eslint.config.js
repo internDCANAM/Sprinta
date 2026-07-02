@@ -1,8 +1,9 @@
 import tseslint from 'typescript-eslint'
 import reactPlugin from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
-import globals from 'globals'
+import security from 'eslint-plugin-security'
 import prettier from 'eslint-config-prettier'
+import globals from 'globals'
 
 export default tseslint.config(
   { ignores: ['**/dist/**', '**/node_modules/**'] },
@@ -15,6 +16,12 @@ export default tseslint.config(
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-console': 'warn',
     },
   },
 
@@ -42,6 +49,14 @@ export default tseslint.config(
     files: ['backend/src/**/*.ts'],
     languageOptions: {
       globals: globals.node,
+    },
+  },
+
+  {
+    ...security.configs.recommended,
+    rules: {
+      ...security.configs.recommended.rules,
+      'security/detect-object-injection': 'off', // constant false positives on normal array indexing in TypeScript
     },
   },
 

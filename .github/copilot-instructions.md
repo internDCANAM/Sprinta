@@ -18,9 +18,6 @@ pastable block only — do not run `git commit`.
 Write all comments in English. If a file you edit contains Swedish comments, translate
 the affected block before finishing — never leave a file with mixed comment languages.
 
-Domain enum values (`SLUTAVVERKNING`, `PAGAENDE`, `AVVERKNING_START`, etc.) are Swedish
-by design and match the database schema. Do not translate or rename them.
-
 ## User-facing strings
 
 Use `t('key')` from `backend/src/lib/locale.ts` for API error responses.
