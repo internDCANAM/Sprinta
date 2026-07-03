@@ -6,26 +6,34 @@ that need feedback before they're ready to be scoped as an Issue.
 
 ## Pending decisions
 
-- [x] **Prettier config** — agree on print width (80 or 100), quotes (single),
-      semicolons.
-- [x] **AGENTS.md** — agree on agent rules before committing the file.
-- [x] **Dependabot, Snyk, or both** — Dependabot is free and catches outdated deps;
-      Snyk adds vuln scanning. They complement each other but Dependabot alone is
-      a reasonable starting point.
-- [x] **eslint-plugin-security** — scans for Node.js vulnerabilities.
-- [x] **eslint configurations** — relevant to ISO rules.
 - [ ] **Audit log retention** — decide how long messages and deals are kept in db logs
       before the schema and cleanup jobs can be written.
-- [ ] `REFRESH_TTL_SECONDS` / `JWT_REFRESH_TTL` synchronisation — either parse the TTL
-      string with ms to drive the Redis TTL, or lock the two to the same value in the
-      schema.
-- [ ] **Auth route error strings** — wire up t() from locale.ts in auth.ts (and verify 
-      all other routes do the same before launch).
+- [ ] **Locale/error-string catalog** — `backend/src/lib/locale.ts` doesn't exist yet, 
+      and no route calls `t()`. Error strings are hardcoded and inconsistently mixed: 
+      English in `auth.ts`, Swedish in `me.ts` and `admin.ts`. Before this is issue-sized, 
+      decide the catalog shape (flat vs. nested keys, whether messages take interpolated 
+      params) and where the sv/en string pairs live. Once decided, the issue covers all routes
+       — `auth.ts`, `me.ts`, `admin.ts`, `deals.ts`, `payments.ts` — not just auth.ts.
 - [ ] **Introduce locale-based codebase** — migrate Swedish domain enum values
       (`PAGAENDE`, `SLUTAVVERKNING`, `AVVERKNING_START`, etc.) to English identifiers
       throughout source, shared types, and database schema. Requires coordinated
       migration: Prisma schema rename + data migration + shared enums + all call sites.
-- [ ] **Writing tests** — ...
+      Decided, but sequence after (or alongside) the locale/error-string catalog above:
+      `admin.ts` carries both the Swedish enum values and hardcoded Swedish error strings,
+      and `StatusBadge.tsx` already hardcodes its own Swedish label map keyed by these enum
+      values — renaming first risks touching both files twice once the real locale
+      mechanism lands.
+- [ ] **Test Architecture** — location/coverage/extensions/libraries  
+  **Mandatory:**
+  - config/env.ts: loadEnv()
+  - lib/crypto.ts: encrypt/decrypt/maskBankAccount/hashForAudit
+  - utils/auth.ts
+  - middleware/auth.ts: role middleware
+  - middleware/ownership.ts
+  - middleware/validate.ts
+  - middleware/rateLimit.ts
+  - middleware/error.ts: no message/stack leakage on unhandled errors
+  - app.ts: helmet/cors headers actually present on responses
 
 ## Rough ideas
 
@@ -36,5 +44,3 @@ Too vague for an issue — flesh out before promoting.
   performance is a problem, convert to vector tiles (MVT) with tippecanoe or PostGIS
   `ST_AsMVT`. National agencies expose WMS links for soil, terrain, and elevation that
   can be layered directly as raster tile sources.
-- **'Logout from all devices'** — needs both an API endpoint (invalidate all sessions
-  in Redis) and a frontend trigger. Straightforward but touches auth middleware.

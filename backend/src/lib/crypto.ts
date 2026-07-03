@@ -1,10 +1,11 @@
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
 import { env } from '../config/env.js';
 
-const ALGORITHM = 'aes-256-gcm';     // AES with 256-bit key in Galois/Counter Mode (authenticated encryption)
-const IV_LENGTH = 12;                 // 12 bytes (96 bits) — the standard for GCM; other lengths degrade performance and security
-const AUTH_TAG_LENGTH = 16;           // 16 bytes (128 bits) — maximum tag length, provides strongest forgery protection
-const keyBuffer = Buffer.from(env.ENCRYPTION_KEY, 'hex'); // parsed once; reused on every encrypt/decrypt call
+const ALGORITHM = 'aes-256-gcm';    // AES-256 in GCM — authenticated encryption
+const IV_LENGTH = 12;               // 96 bits — GCM's standard IV size
+const AUTH_TAG_LENGTH = 16;         // 128 bits — strongest forgery protection
+
+const keyBuffer = Buffer.from(env.ENCRYPTION_KEY, 'hex'); // parsed once, reused every call
 
 /**
  * Encrypts a plaintext string with AES-256-GCM.
@@ -30,11 +31,11 @@ export function encrypt(plaintext: string): string {
 /**
  * Decrypts a payload produced by {@link encrypt}.
  *
- * GCM mode verifies the auth tag before returning plaintext — if the ciphertext
- * or tag has been tampered with, this throws rather than returning corrupt data.
+ * GCM mode verifies the auth tag before returning plaintext.
  *
  * @param payload - Base64-encoded `iv || authTag || ciphertext` as returned by {@link encrypt}
  * @returns Decrypted UTF-8 string
+ * @throws If the ciphertext or auth tag has been tampered with, rather than returning corrupt data
  * @see {@link createDecipheriv} — underlying Node.js primitive
  */
 export function decrypt(payload: string): string {

@@ -21,7 +21,15 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       'no-eval': 'error',
       'no-implied-eval': 'error',
-      'no-console': 'warn',
+      'no-console': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression > TSAsExpression > TSUnknownKeyword',
+          message:
+            'Double-cast through `unknown` bypasses type checking the same way `any` does — validate the value (e.g. with a Zod schema) instead of asserting its shape.',
+        },
+      ],
     },
   },
 
@@ -57,6 +65,8 @@ export default tseslint.config(
     rules: {
       ...security.configs.recommended.rules,
       'security/detect-object-injection': 'off', // constant false positives on normal array indexing in TypeScript
+      'security/detect-non-literal-fs-filename': 'error', // this app serves documents from local storage — path traversal risk is real, not theoretical
+      'security/detect-child-process': 'error',
     },
   },
 
