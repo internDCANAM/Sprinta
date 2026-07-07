@@ -61,6 +61,13 @@ enum PaymentStatus {
   MISSLYCKAD
 }
 
+enum SecurityEventSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 // ---------- Models ----------
 
 model User {
@@ -283,4 +290,22 @@ model AuditLog {
   @@index([tableName, recordId])
   @@index([changedBy])
   @@map("audit_log")
+}
+
+model SecurityEvent {
+  id        String                @id @default(uuid()) @db.Uuid
+  eventType String                @map("event_type")
+  severity  SecurityEventSeverity
+  ipAddress String                @map("ip_address")
+  userAgent String?               @map("user_agent")
+  path      String?
+  method    String?
+  message   String
+  metadata  Json?
+  createdAt DateTime              @default(now()) @map("created_at")
+
+  @@index([eventType])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("security_events")
 }
