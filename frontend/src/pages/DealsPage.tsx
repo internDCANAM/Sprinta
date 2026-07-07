@@ -57,7 +57,15 @@ export function DealsPage() {
       <section>
         <h2 className="mb-3 text-lg">Pågående</h2>
         {grouped.ongoing.length === 0 ? (
-          <p className="text-sm text-forest-900/60">Inga pågående affärer.</p>
+         // <p className="text-sm text-forest-900/60">Inga pågående affärer.</p>
+            <Card>
+              <div className="py-6 text-center">
+                <p className="font-medium text-forest-900">Inga pågående affärer</p>
+                <p className="mt-2 text-sm text-forest-900/60">
+                  Dina aktiva affärer visas här när de finns.
+                </p>
+              </div>
+            </Card>
         ) : (
           <ul className="space-y-3">
             {grouped.ongoing.map((d) => (
@@ -72,7 +80,15 @@ export function DealsPage() {
       <section>
         <h2 className="mb-3 text-lg">Avslutade</h2>
         {grouped.finished.length === 0 ? (
-          <p className="text-sm text-forest-900/60">Inga avslutade affärer.</p>
+         // <p className="text-sm text-forest-900/60">Inga avslutade affärer.</p>
+            <Card>
+              <div className="py-6 text-center">
+                <p className="font-medium text-forest-900">Inga avslutade affärer</p>
+                <p className="mt-2 text-sm text-forest-900/60">
+                  Avslutade affärer visas här när de finns.
+                </p>
+              </div>
+            </Card>
         ) : (
           <ul className="space-y-3">
             {grouped.finished.map((d) => (

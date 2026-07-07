@@ -65,7 +65,7 @@ pnpm backend db:seed            # populate with test data
 Start each server from the repo root:
 
 ```bash
-pnpm backend dev                          # API — localhost:3000
+pnpm backend dev                          # API — localhost:4000
 pnpm --filter @sprintaiso/frontend dev    # portal — localhost:5173
 ```
 
@@ -84,9 +84,10 @@ Visit `http://localhost:5173`.
 .
 ├── backend/            Express API, Prisma ORM, JWT auth, Redis sessions
 │   ├── src     
-│   │   ├── routes/     auth, deals, documents, payments, messages
-│   │   ├── middleware/ auth, error handling, rate limiting
-│   │   └── lib/        crypto (PII), JWT, locale (i18n), validation
+│   │   ├── routes/     health, auth, me, deals, payments, admin
+│   │   ├── middleware/ auth, ownership, validate, rate limiting, error handling
+│   │   ├── lib/        crypto (PII), logger, prisma, redis
+│   │   └── utils/      JWT signing/verification, audit, error helpers
 │   └── prisma/         schema and migrations
 ├── frontend/           Vite + React customer portal
 │   └── src     
@@ -109,10 +110,13 @@ ESLint enforces correctness and security rules across all packages.
 - `@typescript-eslint/no-explicit-any` — bans the `any` type. TypeScript's safety guarantees only hold when everything is typed; `any` silently opts out of that.
 - `no-eval` — bans `eval()`, which executes arbitrary strings as code and is a direct injection vector.
 - `no-implied-eval` — same risk, less obvious: catches `setTimeout("code")` and `new Function("code")`.
-- `no-console` — warns when `console` is used instead of the Winston logger. Raw console calls bypass log levels, timestamps, and structured JSON output in production.
+- `no-console` — errors when `console` is used instead of the Winston logger. Raw console calls bypass log levels, timestamps, and structured JSON output in production.
 - `security/detect-unsafe-regex` — catches regexes vulnerable to ReDoS (exponential backtracking on crafted input).
 - `security/detect-non-literal-fs-filename` — flags `fs.readFile(userInput)`, which can expose arbitrary files.
 - `security/detect-non-literal-require` — flags `require(variable)`, which can load arbitrary modules.
+
+This is a short, illustrative subset. For the full configured rule set, and for the blind
+spots a green lint run won't show you, see [`docs/ESLINT_RULEBOOK.md`](docs/ESLINT_RULEBOOK.md).
 
 #### Commands
 
@@ -131,6 +135,13 @@ Config lives in `.prettierrc` at the repo root. All editors read the same file, 
 **VS Code:** install the [Prettier extension](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) (`esbenp.prettier-vscode`).
 
 **IntelliJ / WebStorm:** Settings → Languages & Frameworks → JavaScript → Prettier → set the Prettier package path to `<project>/node_modules/prettier` and enable "Run on save".
+
+### Comments & TSDoc
+
+When to write a comment at all, when a plain `//` is enough versus a full TSDoc block, how
+to reference a non-obvious library call without a rotting web link, and what actually
+renders in an editor's hover popup (and what doesn't) — see
+[`docs/COMMENT_STYLE.md`](docs/COMMENT_STYLE.md).
 
 ## Working in this repo
 
@@ -161,5 +172,6 @@ Three files tell AI coding assistants how to behave in this repo. They are layer
 - Run `pnpm lint` and `pnpm typecheck` before finishing any task; report new errors
 - Re-read every modified file before responding
 - Write all comments in English; translate any Swedish comments encountered in edited files
+- Comment style (when to use TSDoc, how to reference library calls, hover rendering) follows `docs/COMMENT_STYLE.md`
 - Domain enum values (`PAGAENDE`, `SLUTAVVERKNING`, etc.) are Swedish by design — do not translate them
 - User-facing strings go through `t()` in `backend/src/lib/locale.ts`; internal errors stay in English
