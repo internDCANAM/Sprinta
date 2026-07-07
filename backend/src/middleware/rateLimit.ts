@@ -13,6 +13,7 @@ export const loginRateLimiter = rateLimit({
     code: "RATE_LIMITED",
     statusCode: 429,
   },
+
   store: new RedisStore({
     sendCommand: (command: string, ...args: string[]) =>
       redis.call(command, ...args) as Promise<never>,
