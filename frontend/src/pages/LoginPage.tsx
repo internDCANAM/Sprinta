@@ -3,8 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Button } from "../components/Button";
 import { extractErrorMessage } from "../api/client";
+import { useToast } from "../components/ToastProvider";
 
 export function LoginPage() {
+  const { showToast } = useToast();
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,11 +22,15 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       const user = await login(email, password);
+      showToast("Login successful", "success");
       const from = (location.state as { from?: string } | null)?.from;
       const defaultHome = user.role === "CUSTOMER" ? "/deals" : "/admin";
       navigate(from ?? defaultHome, { replace: true });
     } catch (e) {
-      setErr(extractErrorMessage(e));
+     // setErr(extractErrorMessage(e));
+      const message = extractErrorMessage(e);
+      setErr(message);
+      showToast(message, "error");
     } finally {
       setSubmitting(false);
     }
