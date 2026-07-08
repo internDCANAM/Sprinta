@@ -5,7 +5,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import { getAccessToken, setAccessToken } from "../auth/tokenStore";
-import type { ApiErrorBody, RefreshResponse } from "@sprintaiso/shared";
+import type { ApiErrorBody, RefreshResponse } from "@sprintaiso/api-types";
 
 export const api: AxiosInstance = axios.create({
   baseURL: "/api/v1",

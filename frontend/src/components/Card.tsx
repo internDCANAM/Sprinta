@@ -1,9 +1,9 @@
 import clsx from "clsx";
-import type { ReactNode, MouseEvent } from "react";
+import type { ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
-  onClick?: (e: MouseEvent<HTMLDivElement>) => void;
+  onClick?: () => void;
   className?: string;
 }
 
@@ -18,7 +18,7 @@ export function Card({ children, onClick, className }: Props) {
         if (!onClick) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onClick(e as unknown as MouseEvent<HTMLDivElement>);
+          onClick();
         }
       }}
       className={clsx(

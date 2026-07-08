@@ -1,9 +1,9 @@
 # Sprintaiso Kundportal
 
-Customer portal for a Swedish forestry company. Owners can track timber deals, view
-documents, message admins, and monitor payments.
+Customer portal for a Swedish forestry company. Owners can track timber deals,
+view documents, message admins, and monitor payments.
 
-**Stack:** pnpm monorepo — Express + Prisma + PostgreSQL + Redis (backend), Vite + React 18 + Tailwind (frontend), shared TypeScript types.
+**Stack:** Express + Prisma + PostgreSQL + Redis + Vite + React 18 + Tailwind.
 
 ## Prerequisites
 
@@ -14,29 +14,39 @@ documents, message admins, and monitor payments.
 Verify pnpm is available before starting:
 
 ```bash
-pnpm --version   # should print 9.x.x — if not found: npm install -g pnpm
+pnpm --version  # else run: npm install -g pnpm
 ```
 
 ## Setup
 
-> **Windows:** the `cp` commands in setup below are Unix/Mac only. Use `copy` in CMD or `Copy-Item` in PowerShell, or just duplicate the files manually.
-
 ### 1. Configure environment
 
-`.env.example` files exist in `backend/` and `frontend/`. Copy each to `.env`:
+copy&paste + rename .env.example to .env or with commands:
 
+#### Linux & Mac
 ```bash
+cp .env.example .env
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Generate the required `ENCRYPTION_KEY` (used to encrypt PII at rest):
+#### Windows
+```powershell
+Copy-Item .env.example .env
+Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
+```
+
+`ENCRYPTION_KEY` generation:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Paste the output into `backend/.env` as `ENCRYPTION_KEY=<value>`.
+Set in `backend/.env`  
+`SEED_ADMIN_EMAIL=<value>`  
+`SEED_ADMIN_PASSWORD=<value>`  
+`ENCRYPTION_KEY=<value>`
 
 ### 2. Start the database
 
@@ -57,26 +67,24 @@ pnpm install
 ```bash
 pnpm backend prisma:generate    # generate Prisma client from schema
 pnpm backend prisma:migrate     # create tables and indexes
-pnpm backend db:seed            # populate with test data
+pnpm backend db:seed            # create the one admin account (from SEED_ADMIN_EMAIL/PASSWORD)
 ```
 
 ## Running locally
-
-Start each server from the repo root:
 
 ```bash
 pnpm backend dev                          # API — localhost:4000
 pnpm --filter @sprintaiso/frontend dev    # portal — localhost:5173
 ```
 
-Visit `http://localhost:5173`.
+Visit `http://localhost:5173`
 
-## Test credentials
+### Running a production-style build
 
-| Role     | Email              | Password    |
-|----------|--------------------|-------------|
-| Admin    | `admin@skogsbo.se` | `Admin123!` |
-| Customer | `klas@example.se`  | `Skog123!`  |
+```bash
+pnpm backend build && pnpm backend start   # API from dist/, no watch/reload
+pnpm --filter @sprintaiso/frontend build   # portal, output in frontend/dist/
+```
 
 ## Project structure
 
@@ -85,16 +93,15 @@ Visit `http://localhost:5173`.
 ├── backend/            Express API, Prisma ORM, JWT auth, Redis sessions
 │   ├── src     
 │   │   ├── routes/     health, auth, me, deals, payments, admin
-│   │   ├── middleware/ auth, ownership, validate, rate limiting, error handling
-│   │   ├── lib/        crypto (PII), logger, prisma, redis
-│   │   └── utils/      JWT signing/verification, audit, error helpers
+│   │   ├── middleware/ auth, ownership, validate, rate limiting, i18n
+│   │   ├── lib/        crypto (PII), logger, prisma, redis, i18n catalog
+│   │   └── utils/      JWT signing/verification, HTTP errors, audit/security events
 │   └── prisma/         schema and migrations
-├── frontend/           Vite + React customer portal
-│   └── src     
-│       ├── pages/      page components
-│       ├── components/ reusable UI
-│       └── api/        API client (axios + TanStack Query)
-└── shared/             cross-package TypeScript types and enums
+└── frontend/           Vite + React customer portal
+    └── src     
+        ├── pages/      page components
+        ├── components/ reusable UI
+        └── api/        API client (axios + TanStack Query)
 ```
 
 ## Development
@@ -103,20 +110,33 @@ Visit `http://localhost:5173`.
 
 ESLint enforces correctness and security rules across all packages.
 
-`eslint-plugin-security` is included for ISO 27001 A.8.28 (Secure Coding) compliance. It detects Node.js-specific vulnerabilities in your own code — things Dependabot cannot catch because Dependabot only scans dependencies, not what you write.
+`eslint-plugin-security` is included for ISO 27001 A.8.28 (Secure Coding)
+compliance. It detects Node.js-specific vulnerabilities in your own code —
+things Dependabot cannot catch because Dependabot only scans dependencies, not
+what you write.
 
 #### Rules
 
-- `@typescript-eslint/no-explicit-any` — bans the `any` type. TypeScript's safety guarantees only hold when everything is typed; `any` silently opts out of that.
-- `no-eval` — bans `eval()`, which executes arbitrary strings as code and is a direct injection vector.
-- `no-implied-eval` — same risk, less obvious: catches `setTimeout("code")` and `new Function("code")`.
-- `no-console` — errors when `console` is used instead of the Winston logger. Raw console calls bypass log levels, timestamps, and structured JSON output in production.
-- `security/detect-unsafe-regex` — catches regexes vulnerable to ReDoS (exponential backtracking on crafted input).
-- `security/detect-non-literal-fs-filename` — flags `fs.readFile(userInput)`, which can expose arbitrary files.
-- `security/detect-non-literal-require` — flags `require(variable)`, which can load arbitrary modules.
+- `@typescript-eslint/no-explicit-any` — bans the `any` type. TypeScript's
+  safety guarantees only hold when everything is typed; `any` silently opts out
+  of that.
+- `no-eval` — bans `eval()`, which executes arbitrary strings as code and is a
+  direct injection vector.
+- `no-implied-eval` — same risk, less obvious: catches `setTimeout("code")` and
+  `new Function("code")`.
+- `no-console` — errors when `console` is used instead of the Winston logger.
+  Raw console calls bypass log levels, timestamps, and structured JSON output in
+  production.
+- `security/detect-unsafe-regex` — catches regexes vulnerable to ReDoS
+  (exponential backtracking on crafted input).
+- `security/detect-non-literal-fs-filename` — flags `fs.readFile(userInput)`,
+  which can expose arbitrary files.
+- `security/detect-non-literal-require` — flags `require(variable)`, which can
+  load arbitrary modules.
 
-This is a short, illustrative subset. For the full configured rule set, and for the blind
-spots a green lint run won't show you, see [`docs/ESLINT_RULEBOOK.md`](docs/ESLINT_RULEBOOK.md).
+This is a short, illustrative subset. For the full configured rule set, and for
+the blind spots a green lint run won't show you, see
+[`docs/ESLINT_RULEBOOK.md`](docs/ESLINT_RULEBOOK.md).
 
 #### Commands
 
@@ -128,37 +148,51 @@ pnpm typecheck    # tsc --noEmit across all packages
 
 ### Prettier
 
-Prettier formats code automatically on save — indentation, quotes, semicolons, line breaks.
+Prettier formats code automatically on save — indentation, quotes, semicolons,
+line breaks.
 
-Config lives in `.prettierrc` at the repo root. All editors read the same file, so formatting is consistent regardless of who commits.
+Config lives in `.prettierrc` at the repo root. All editors read the same file,
+so formatting is consistent regardless of who commits.
 
-**VS Code:** install the [Prettier extension](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) (`esbenp.prettier-vscode`).
+**VS Code:** install the [Prettier extension](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) `esbenp.prettier-vscode`
 
-**IntelliJ / WebStorm:** Settings → Languages & Frameworks → JavaScript → Prettier → set the Prettier package path to `<project>/node_modules/prettier` and enable "Run on save".
+**IntelliJ / WebStorm:** Settings → Languages & Frameworks → JavaScript →
+Prettier → set the Prettier package path to `<project>/node_modules/prettier`
+and enable "Run on save".
 
 ### Comments & TSDoc
 
-When to write a comment at all, when a plain `//` is enough versus a full TSDoc block, how
-to reference a non-obvious library call without a rotting web link, and what actually
-renders in an editor's hover popup (and what doesn't) — see
+When to write a comment at all, when a plain `//` is enough versus a full TSDoc
+block, how to reference a non-obvious library call without a rotting web link,
+and what actually renders in an editor's hover popup (and what doesn't) — see
 [`docs/COMMENT_STYLE.md`](docs/COMMENT_STYLE.md).
 
 ## Working in this repo
 
 ### todo.md
 
-`todo.md` is a **pre-issue scratch pad** — not a task tracker. It holds two things:
+`todo.md` is a **pre-issue scratch pad** — not a task tracker. It holds two
+things:
 
-- **Pending decisions** — things the team needs to agree on before work can start (e.g. config choices, retention policies). Once decided, the item is checked off and any resulting work becomes a GitHub Issue.
-- **Rough ideas** — features or changes that need discussion or feedback before they can be scoped. Once the direction is clear, promote to a GitHub Issue.
+- **Pending decisions** — things the team needs to agree on before work can
+  start (e.g. config choices, retention policies). Once decided, the item is
+  checked off and any resulting work becomes a GitHub Issue.
+- **Rough ideas** — features or changes that need discussion or feedback before
+  they can be scoped. Once the direction is clear, promote to a GitHub Issue.
 
-**GitHub Issues** are for anything concrete enough to actually work on — bugs, features, UI work. If you want to start on the frontend login layout, open an Issue with a `Type: feature` label and a one-line description of what you're building. You don't need a full spec; just enough that someone else could pick it up.
+**GitHub Issues** are for anything concrete enough to actually work on — bugs,
+features, UI work. If you want to start on the frontend login layout, open an
+Issue with a `Type: feature` label and a one-line description of what you're
+building. You don't need a full spec; just enough that someone else could pick
+it up.
 
-The distinction: if you need the team to weigh in before you start, put it in `todo.md` first. If you already know what you're doing, go straight to an Issue.
+The distinction: if you need the team to weigh in before you start, put it in
+`todo.md` first. If you already know what you're doing, go straight to an Issue.
 
 ### Agent instruction files
 
-Three files tell AI coding assistants how to behave in this repo. They are layered — each one builds on `AGENTS.md`:
+Three files tell AI coding assistants how to behave in this repo. They are
+layered — each one builds on `AGENTS.md`:
 
 | File                              | Read by                      | Purpose                                                                                              |
 |-----------------------------------|------------------------------|------------------------------------------------------------------------------------------------------|
@@ -168,10 +202,12 @@ Three files tell AI coding assistants how to behave in this repo. They are layer
 
 **Key rules every agent follows (defined in `AGENTS.md`):**
 
-- Never stage, commit, or push — commit messages are output as pastable blocks only
-- Run `pnpm lint` and `pnpm typecheck` before finishing any task; report new errors
+- Never stage, commit, or push — commit messages are output as pastable blocks
+  only
+- Run `pnpm lint` and `pnpm typecheck` before finishing any task; report new
+  errors
 - Re-read every modified file before responding
-- Write all comments in English; translate any Swedish comments encountered in edited files
-- Comment style (when to use TSDoc, how to reference library calls, hover rendering) follows `docs/COMMENT_STYLE.md`
-- Domain enum values (`PAGAENDE`, `SLUTAVVERKNING`, etc.) are Swedish by design — do not translate them
-- User-facing strings go through `t()` in `backend/src/lib/locale.ts`; internal errors stay in English
+- Write all comments in English; translate any Swedish comments encountered in
+  edited files
+- Comment style (when to use TSDoc, how to reference library calls, hover
+  rendering) follows `docs/COMMENT_STYLE.md`

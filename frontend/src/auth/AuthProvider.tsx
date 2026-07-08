@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import axios from "axios";
-import type { AuthUser, RefreshResponse } from "@sprintaiso/shared";
+import type { AuthUser, RefreshResponse } from "@sprintaiso/api-types";
 import { getAccessToken, setAccessToken } from "./tokenStore";
 import { loginRequest, logoutRequest } from "../api/endpoints";
 
@@ -25,11 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Vid första render: försök byta refresh-cookien mot ett access token så
-  // att användaren stannar inloggad över en reload.
+  // On first render: try to exchange the refresh cookie for an access token
+  // so the user stays logged in across a reload.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const res = await axios.post<RefreshResponse>(
           "/api/v1/auth/refresh",
@@ -38,9 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         if (cancelled) return;
         setAccessToken(res.data.accessToken);
-        // Access-tokenen innehåller vårt user-id men vi hämtar det säkert
-        // genom att dekoda payload (utan att validera — servern är källa
-        // till sanning vid varje API-anrop).
+        // The access token carries our user id, but we read it safely by
+        // decoding the payload (without validating it — the server is the
+        // source of truth on every API call).
         const payload = decodeJwtPayload(res.data.accessToken);
         if (payload) {
           setUser({
@@ -49,10 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: "",
             role: payload.role,
             customerId: payload.customerId,
+            locale: payload.locale,
           });
         }
       } catch {
-        // Ingen giltig refresh-cookie — användaren är utloggad.
+        // No valid refresh cookie — the user is logged out.
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logoutRequest();
     } catch {
-      // Ignorera — vi nollar lokalt ändå.
+      // Ignore — we clear local state regardless.
     }
     setAccessToken(null);
     setUser(null);
@@ -97,6 +98,7 @@ interface JwtPayload {
   userId: string;
   role: AuthUser["role"];
   customerId: string | null;
+  locale: AuthUser["locale"];
 }
 
 function decodeJwtPayload(token: string): JwtPayload | null {

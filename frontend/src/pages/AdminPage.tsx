@@ -4,21 +4,15 @@ import {
   createAdminDeal,
   fetchAdminCustomers,
   fetchAdminDeals,
+  fetchDomainConfig,
 } from "../api/endpoints";
-import type { DealType } from "@sprintaiso/shared";
+import type { DealType } from "@sprintaiso/api-types";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { StatusBadge } from "../components/StatusBadge";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { formatSek } from "../lib/format";
-
-const DEAL_TYPES: DealType[] = [
-  "SLUTAVVERKNING",
-  "GALLRING",
-  "ENERGIVIRKE",
-  "OVRIGT",
-];
 
 export function AdminPage() {
   const [showCreate, setShowCreate] = useState(false);
@@ -155,17 +149,21 @@ function CreateDealModal({ onClose }: { onClose: () => void }) {
     queryKey: ["admin", "customers"],
     queryFn: fetchAdminCustomers,
   });
+  const config = useQuery({
+    queryKey: ["config"],
+    queryFn: fetchDomainConfig,
+  });
 
   const [customerId, setCustomerId] = useState("");
   const [externalId, setExternalId] = useState("");
   const [title, setTitle] = useState("");
-  const [dealType, setDealType] = useState<DealType>("SLUTAVVERKNING");
+  const [dealType, setDealType] = useState<DealType>("REGENERATION_FELLING");
   const [estimated, setEstimated] = useState("");
 
   const create = useMutation({
     mutationFn: createAdminDeal,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "deals"] });
+      void qc.invalidateQueries({ queryKey: ["admin", "deals"] });
       onClose();
     },
   });
@@ -241,7 +239,7 @@ function CreateDealModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setDealType(e.target.value as DealType)}
               className="w-full rounded-lg border border-forest-200 bg-forest-50 px-3 py-2"
             >
-              {DEAL_TYPES.map((t) => (
+              {(config.data?.dealTypes ?? []).map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>

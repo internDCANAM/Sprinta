@@ -4,14 +4,13 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { validate } from '../middleware/validate.js';
 import { loginRateLimiter } from '../middleware/rateLimit.js';
-import { asyncHandler } from '../utils/async.js';
-import { unauthorized } from '../utils/errors.js';
-import { REFRESH_COOKIE_MAX_AGE_MS,REFRESH_COOKIE_NAME,isRefreshTokenValid,revokeRefreshToken,
-        signAccessToken,signRefreshToken,storeRefreshToken,verifyRefreshToken } 
-        from '../utils/auth.js';
+import { asyncHandler, unauthorized } from '../utils/http.js';
+import { REFRESH_COOKIE_MAX_AGE_MS, REFRESH_COOKIE_NAME, isRefreshTokenValid, revokeRefreshToken,
+         signAccessToken, signRefreshToken, storeRefreshToken,verifyRefreshToken } from '../utils/auth.js';
 import { logger } from '../lib/logger.js';
 import { NodeEnv } from '../config/enums.js';
 import { env } from '../config/env.js';
+import { extractLocale } from '../middleware/i18n.middleware.js';
 
 export const authRouter = Router();
 
@@ -43,12 +42,12 @@ authRouter.post(
     });
 
     if (!user || !user.isActive) {
-      throw unauthorized('Invalid email or password');
+      throw unauthorized(req, req.t.auth.invalidCredentials);
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
-      throw unauthorized('Invalid email or password');
+      throw unauthorized(req, req.t.auth.invalidCredentials);
     }
 
     const customerId = user.customer?.id ?? null;
@@ -56,13 +55,14 @@ authRouter.post(
       userId: user.id,
       role: user.role,
       customerId,
+      locale: extractLocale(req) ?? 'sv',
     });
 
     const { token: refreshToken, tokenId } = signRefreshToken(user.id);
     await storeRefreshToken(user.id, tokenId);
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions());
-    logger.info('Login successful', { userId: user.id, role: user.role });
+    logger.info(req.t.auth.success, { userId: user.id, role: user.role });
 
     res.json({
       accessToken,
@@ -81,23 +81,23 @@ authRouter.post(
   '/refresh',
   asyncHandler(async (req, res) => {
     const token = req.cookies[REFRESH_COOKIE_NAME] as string | undefined;
-    if (!token) throw unauthorized('Refresh token missing');
+    if (!token) throw unauthorized(req, req.t.auth.refreshTokenMissing);
 
     let payload;
     try {
       payload = verifyRefreshToken(token);
     } catch {
-      throw unauthorized('Invalid refresh token');
+      throw unauthorized(req, req.t.auth.refreshTokenInvalid);
     }
 
     const valid = await isRefreshTokenValid(payload.userId, payload.tokenId);
-    if (!valid) throw unauthorized('Refresh token revoked');
+    if (!valid) throw unauthorized(req, req.t.auth.refreshTokenRevoked);
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       include: { customer: { select: { id: true } } },
     });
-    if (!user || !user.isActive) throw unauthorized('User inactive');
+    if (!user || !user.isActive) throw unauthorized(req, req.t.auth.userInactive);
 
     await revokeRefreshToken(payload.userId, payload.tokenId);
     const { token: newRefresh, tokenId: newTokenId } = signRefreshToken(user.id);
@@ -108,6 +108,7 @@ authRouter.post(
       userId: user.id,
       role: user.role,
       customerId,
+      locale: extractLocale(req) ?? 'sv',
     });
 
     res.cookie(REFRESH_COOKIE_NAME, newRefresh, refreshCookieOptions());
@@ -123,8 +124,7 @@ authRouter.post(
       try {
         const payload = verifyRefreshToken(token);
         await revokeRefreshToken(payload.userId, payload.tokenId);
-      } catch {
-      }
+      } catch {}
     }
     res.clearCookie(REFRESH_COOKIE_NAME, { path: '/api/v1/auth' });
     res.status(204).end();

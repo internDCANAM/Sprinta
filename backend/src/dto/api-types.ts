@@ -1,4 +1,8 @@
-import type {
+import type { DealEventType, DealStatus, DealType, DocumentType, MessageSenderRole, PaymentStatus, UserRole
+            } from '../../prisma/generated/prisma/enums.js';
+import type { Locale } from '../lib/i18n.js';
+
+export type {
   DealEventType,
   DealStatus,
   DealType,
@@ -6,10 +10,11 @@ import type {
   MessageSenderRole,
   PaymentStatus,
   UserRole,
-} from "./enums.js";
+};
 
 export interface AuthUser {
   id: string;
+  locale: Locale;
   email: string;
   name: string;
   role: UserRole;
@@ -197,4 +202,11 @@ export interface ApiErrorBody {
   code: string;
   statusCode: number;
   details?: unknown;
+}
+
+export interface DomainConfig {
+  dealTypes: DealType[];
+  dealStatuses: DealStatus[];
+  paymentStatuses: PaymentStatus[];
+  userRoles: UserRole[];
 }

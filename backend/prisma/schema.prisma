@@ -1,16 +1,16 @@
-// Sprintaiso — kundportal
-// Datamodell enligt specifikation i session 1.
-
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "./generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// ---------- Enums ----------
+enum Locale {
+  EN @map("en")
+  SV @map("sv")
+}
 
 enum UserRole {
   CUSTOMER
@@ -19,35 +19,35 @@ enum UserRole {
 }
 
 enum DealType {
-  SLUTAVVERKNING
-  GALLRING
-  ENERGIVIRKE
-  OVRIGT
+  REGENERATION_FELLING
+  THINNING
+  ENERGY_WOOD
+  MISC
 }
 
 enum DealStatus {
-  PLANERAD
-  PAGAENDE
-  KLAR
-  FAKTURERAD
-  AVSLUTAD
+  PLANNED
+  ONGOING
+  COMPLETED
+  INVOICED
+  CLOSED
 }
 
 enum DealEventType {
-  AVTAL_SIGNERAT
-  AVVERKNING_START
-  AVVERKNING_SLUT
-  MATBESKED
-  UTBETALNING
-  OVRIGT
+  DEAL_SIGNED
+  HARVEST_STARTED
+  HARVEST_COMPLETE
+  MEASUREMENT_REPORT
+  PAYMENT_DISBURSEMENT
+  MISC
 }
 
 enum DocumentType {
-  AVTAL
-  AVRAKNING
-  MATBESKED
+  CONTRACT
+  SETTLEMENT
+  MEASUREMENT_REPORT
   STANFORD
-  OVRIGT
+  MISC
 }
 
 enum MessageSenderRole {
@@ -56,9 +56,9 @@ enum MessageSenderRole {
 }
 
 enum PaymentStatus {
-  PLANERAD
-  GENOMFORD
-  MISSLYCKAD
+  PLANNED
+  COMPLETED
+  FAILED
 }
 
 enum SecurityEventSeverity {
@@ -68,10 +68,9 @@ enum SecurityEventSeverity {
   CRITICAL
 }
 
-// ---------- Models ----------
-
 model User {
   id           String   @id @default(uuid()) @db.Uuid
+  locale       Locale
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         UserRole

@@ -1,38 +1,32 @@
 # Copilot instructions
 
-See `AGENTS.md` at the repo root for the full rule set. Summary of the most important points:
-
 ## Git
 
-Never stage files, commit, or push. If asked for a commit message, output it as a
-pastable block only — do not run `git commit`.
+- Never create commits or push
+- When asked to produce a commit message, output it as a pastable block — do not
+  run `git commit`
 
-## Before finishing any task
+## Before declaring a task done
 
-1. Run `pnpm lint` from the repo root; new errors or warnings introduced by your changes must be
-   fixed before finishing, not just reported (pre-existing ones can be noted and left alone)
-2. Run `pnpm -r typecheck`; same — fix any new TypeScript errors your changes introduce
-3. Re-read every file you modified
+**DONE CRITERIA**: Fix all newly introduced errors before completing. Run `pnpm lint`
+and `pnpm -r typecheck` from repo root. Self-review all modified files. Ignore
+pre-existing/out-of-scope errors.
 
 ## Code review
 
-When asked to review code rather than write it, also check `docs/ESLINT_RULEBOOK.md` — it covers
-patterns that satisfy a lint rule's letter while defeating its purpose. Not needed for routine
-authoring.
+When asked to review code rather than write it, also check
+`docs/ESLINT_RULEBOOK.md`. It documents patterns that satisfy a configured
+rule's letter while defeating its purpose — the kind of thing a lint run won't
+surface on its own. Not needed for routine authoring; lint/typecheck passing
+(above) already covers what ESLint can see.
 
 ## Scope
 
-Only touch files relevant to the task. Note pre-existing issues rather than silently fixing them.
+- Only modify files directly relevant to the task
+- If you spot a pre-existing bug or issue outside scope, note it — do not
+  silently fix it
 
 ## Comments and language
 
-Write all comments in English. If a file you edit contains Swedish comments, translate
-the affected block before finishing — never leave a file with mixed comment languages.
-When writing or editing a comment, follow `docs/COMMENT_STYLE.md`.
-
-## User-facing strings
-
-Use `t('key')` from `backend/src/lib/locale.ts` for API error responses.
-`APP_LOCALE` in `.env` controls the output language (default `sv`).
-Do not hardcode Swedish or English strings in route handlers or components.
-Internal errors and log output are always in English.
+- Follow `docs/COMMENT_STYLE.md` only when authoring new TSDoc blocks or
+  performing documentation tasks. Ignore pre-existing inline comments.

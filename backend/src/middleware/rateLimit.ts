@@ -1,23 +1,18 @@
-import rateLimit from "express-rate-limit";
-import { RedisStore } from "rate-limit-redis";
-import { redis } from "../lib/redis.js";
-import { recordSecurityEvent } from "../utils/securityEvents.js";
+import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { redis } from '../lib/redis.js';
+import { recordSecurityEvent } from '../utils/securityEvents.js';
 
 export const loginRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 10,
-  standardHeaders: "draft-7",
+  standardHeaders: 'draft-7',
   legacyHeaders: false,
-  message: {
-    error: "För många inloggningsförsök, försök igen om en minut",
-    code: "RATE_LIMITED",
-    statusCode: 429,
-  },
 
   store: new RedisStore({
     sendCommand: (command: string, ...args: string[]) =>
       redis.call(command, ...args) as Promise<never>,
-    prefix: "rl:login:",
+    prefix: 'rl:login:',
   }),
 
   handler: (req, res) => {
@@ -32,8 +27,8 @@ export const loginRateLimiter = rateLimit({
     });
 
     res.status(429).json({
-      error: "För många inloggningsförsök, försök igen senare",
-      code: "RATE_LIMITED",
+      error: req.t.http.rateLimited,
+      code: 'RATE_LIMITED',
       statusCode: 429,
     });
   },

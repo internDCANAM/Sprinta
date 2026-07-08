@@ -1,19 +1,46 @@
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { randomBytes } from 'node:crypto';
+import type { Request } from 'express';
+import { z } from 'zod';
 import { env } from '../config/env.js';
 import { redis } from '../lib/redis.js';
-import type { UserRole } from '@prisma/client';
+import { UserRole } from '../../prisma/generated/prisma/client.js';
+import { languages, type Locale } from '../lib/i18n.js';
 
-export interface AccessTokenPayload {
-  userId: string;
-  role: UserRole;
-  customerId: string | null;
+const localeValues = Object.keys(languages) as [Locale, ...Locale[]];
+
+const AccessTokenPayloadSchema = z.object({
+  userId: z.string(),
+  role: z.nativeEnum(UserRole),
+  customerId: z.string().nullable(),
+  locale: z.enum(localeValues),
+});
+
+/**
+ * Shape of a verified access token's payload. Derived from
+ * {@link AccessTokenPayloadSchema} rather than hand-written, so the runtime
+ * check and the compile-time type can never drift apart.
+ */
+export type AccessTokenPayload = z.infer<typeof AccessTokenPayloadSchema>;
+
+/**
+ * A request that has already passed `authMiddleware`, which populates
+ * `req.user` before calling `next()`. Route handlers registered after
+ * `authMiddleware` declare their `req` parameter as this type (via
+ * `asyncHandler<AuthenticatedRequest>`) so `req.user` reads as guaranteed —
+ * matching the runtime guarantee — instead of narrowing it by hand at
+ * every access.
+ */
+export interface AuthenticatedRequest extends Request {
+  user: AccessTokenPayload;
 }
 
-export interface RefreshTokenPayload {
-  userId: string;
-  tokenId: string;
-}
+const RefreshTokenPayloadSchema = z.object({
+  userId: z.string(),
+  tokenId: z.string(),
+});
+
+export type RefreshTokenPayload = z.infer<typeof RefreshTokenPayloadSchema>;
 
 const refreshKey = (userId: string, tokenId: string) => `refresh:${userId}:${tokenId}`;
 
@@ -23,7 +50,8 @@ export function signAccessToken(payload: AccessTokenPayload): string {
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+  return AccessTokenPayloadSchema.parse(decoded);
 }
 
 export function signRefreshToken(userId: string): {
@@ -39,7 +67,8 @@ export function signRefreshToken(userId: string): {
 }
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
-  return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload;
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+  return RefreshTokenPayloadSchema.parse(decoded);
 }
 
 // 30-day TTL matches the refresh token lifetime configured in JWT_REFRESH_TTL

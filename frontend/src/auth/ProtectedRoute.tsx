@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
-import type { UserRole } from "@sprintaiso/shared";
+import type { UserRole } from "@sprintaiso/api-types";
 import { useAuth } from "./AuthProvider";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 

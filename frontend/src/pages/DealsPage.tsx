@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import type { DealSummary } from "@sprintaiso/shared";
+import type { DealSummary } from "@sprintaiso/api-types";
 import { fetchDeals } from "../api/endpoints";
 import { Card } from "../components/Card";
 import { StatusBadge } from "../components/StatusBadge";
@@ -9,7 +9,7 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { formatSek } from "../lib/format";
 
-const ONGOING = new Set(["PLANERAD", "PAGAENDE", "KLAR", "FAKTURERAD"]);
+const ONGOING = new Set(["PLANNED", "ONGOING", "COMPLETED", "INVOICED"]);
 
 export function DealsPage() {
   const navigate = useNavigate();

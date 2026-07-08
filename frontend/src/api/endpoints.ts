@@ -8,6 +8,7 @@ import type {
   DealEvent,
   DealSummary,
   DocumentSummary,
+  DomainConfig,
   LoginResponse,
   Message,
   Paginated,
@@ -15,7 +16,7 @@ import type {
   TimberPost,
   UpdateBankAccountInput,
   UpdateProfileInput,
-} from "@sprintaiso/shared";
+} from "@sprintaiso/api-types";
 
 // --- auth ---
 export async function loginRequest(email: string, password: string) {
@@ -121,5 +122,11 @@ export async function fetchAdminDeals() {
 
 export async function createAdminDeal(input: CreateDealInput) {
   const { data } = await api.post<DealSummary>("/admin/deals", input);
+  return data;
+}
+
+// --- config ---
+export async function fetchDomainConfig() {
+  const { data } = await api.get<DomainConfig>("/config");
   return data;
 }

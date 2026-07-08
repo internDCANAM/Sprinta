@@ -99,8 +99,8 @@ export async function retry<T>(fn: () => Promise<T>, maxAttempts: number): Promi
 
 ## Checklist
 
-- [ ] Exported, long, or needs `{@link}`? Use a TSDoc block — otherwise a trailing `//` is enough.
-- [ ] Does the summary say *why*, not *what* the name already says?
-- [ ] Do `@param`/`@returns` describe meaning, not repeat the type?
-- [ ] Does a non-obvious library call get a `{@link}` to its declaration, not a web URL?
-- [ ] In an aligned block of trailing comments, does every line have one?
+- Exported, long, or needs `{@link}`? Use a TSDoc block — otherwise a trailing `//` is enough.
+- Does the summary say *why*, not *what* the name already says?
+- Do `@param`/`@returns` describe meaning, not repeat the type?
+- Does a non-obvious library call get a `{@link}` to its declaration, not a web URL?
+- In an aligned block of trailing comments, does every line have one?

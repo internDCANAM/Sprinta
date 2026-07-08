@@ -2,27 +2,24 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authMiddleware, roleMiddleware } from "../middleware/auth.js";
-import { dealOwnershipMiddleware } from "../middleware/ownership.js";
+import { dealOwnershipMiddleware, type DealRequest } from "../middleware/ownership.js";
 import { validate } from "../middleware/validate.js";
-import { asyncHandler } from "../utils/async.js";
-import { forbidden, notFound } from "../utils/errors.js";
+import { asyncHandler, buildPagination, PaginationSchema,
+         forbidden, notFound, type PaginationQuery } from "../utils/http.js";
+import type { AuthenticatedRequest } from "../utils/auth.js";
 
 export const dealsRouter = Router();
 
 dealsRouter.use(authMiddleware, roleMiddleware(["CUSTOMER"]));
 
-const PaginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-});
-
 dealsRouter.get(
   "/",
   validate(PaginationSchema, "query"),
-  asyncHandler(async (req, res) => {
-    const customerId = req.user!.customerId;
-    if (!customerId) throw forbidden();
-    const { page, limit } = req.query as unknown as z.infer<typeof PaginationSchema>;
+  asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const customerId = req.user.customerId;
+    if (!customerId) throw forbidden(req);
+    const query: unknown = req.query;
+    const { page, limit } = query as PaginationQuery;
 
     const [total, deals] = await Promise.all([
       prisma.deal.count({ where: { customerId } }),
@@ -38,10 +35,7 @@ dealsRouter.get(
       }),
     ]);
 
-    res.json({
-      data: deals,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    });
+    res.json({ data: deals, pagination: buildPagination(page, limit, total) });
   }),
 );
 
@@ -64,14 +58,14 @@ dealsRouter.get(
         },
       },
     });
-    if (!deal) throw notFound();
+    if (!deal) throw notFound(req);
     res.json(deal);
   }),
 );
 
 dealsRouter.get(
   "/:id/events",
-  dealOwnershipMiddleware,
+dealOwnershipMiddleware,
   asyncHandler(async (req, res) => {
     const events = await prisma.dealEvent.findMany({
       where: { dealId: req.params.id },
@@ -152,13 +146,13 @@ dealsRouter.post(
   "/:id/messages",
   dealOwnershipMiddleware,
   validate(MessageSchema),
-  asyncHandler(async (req, res) => {
+  asyncHandler<DealRequest>(async (req, res) => {
     const { body } = req.body as z.infer<typeof MessageSchema>;
     const message = await prisma.message.create({
       data: {
-        dealId: req.params.id!,
-        senderId: req.user!.userId,
-        senderRole: req.user!.role === "CUSTOMER" ? "CUSTOMER" : "ADMIN",
+        dealId: req.deal.id,
+        senderId: req.user.userId,
+        senderRole: req.user.role === "CUSTOMER" ? "CUSTOMER" : "ADMIN",
         body,
       },
       include: { sender: { select: { id: true, name: true, role: true } } },

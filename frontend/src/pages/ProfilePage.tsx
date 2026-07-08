@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CustomerProfile } from "@sprintaiso/shared";
+import type { CustomerProfile } from "@sprintaiso/api-types";
 import {
   fetchMe,
   updateBankAccount,
@@ -39,13 +39,16 @@ function ProfileForm({ profile }: { profile: CustomerProfile }) {
   });
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => setSaved(false), [form]);
+  function updateField(patch: Partial<typeof form>) {
+    setForm((f) => ({ ...f, ...patch }));
+    setSaved(false);
+  }
 
   const save = useMutation({
     mutationFn: updateProfile,
     onSuccess: () => {
       setSaved(true);
-      qc.invalidateQueries({ queryKey: ["me"] });
+      void qc.invalidateQueries({ queryKey: ["me"] });
     },
   });
 
@@ -71,38 +74,38 @@ function ProfileForm({ profile }: { profile: CustomerProfile }) {
       <Field
         label="Namn"
         value={form.name}
-        onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+        onChange={(v) => updateField({ name: v })}
       />
       <Field
         label="E-post"
         type="email"
         value={form.email}
-        onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+        onChange={(v) => updateField({ email: v })}
       />
       <Field
         label="Telefon"
         type="tel"
         value={form.phone}
-        onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+        onChange={(v) => updateField({ phone: v })}
       />
       <Field
         label="Gatuadress"
         value={form.addressStreet}
-        onChange={(v) => setForm((f) => ({ ...f, addressStreet: v }))}
+        onChange={(v) => updateField({ addressStreet: v })}
       />
       <div className="flex gap-3">
         <div className="w-1/3">
           <Field
             label="Postnummer"
             value={form.addressPostal}
-            onChange={(v) => setForm((f) => ({ ...f, addressPostal: v }))}
+            onChange={(v) => updateField({ addressPostal: v })}
           />
         </div>
         <div className="flex-1">
           <Field
             label="Ort"
             value={form.addressCity}
-            onChange={(v) => setForm((f) => ({ ...f, addressCity: v }))}
+            onChange={(v) => updateField({ addressCity: v })}
           />
         </div>
       </div>
@@ -133,7 +136,7 @@ function BankAccountSection({ profile }: { profile: CustomerProfile }) {
       setEditing(false);
       setValue("");
       setConfirmed(false);
-      qc.invalidateQueries({ queryKey: ["me"] });
+      void qc.invalidateQueries({ queryKey: ["me"] });
     },
   });
 

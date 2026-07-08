@@ -11,7 +11,6 @@
     "smoke": "tsx scripts/proxy-smoke.ts"
   },
   "dependencies": {
-    "@sprintaiso/shared": "workspace:*",
     "@tanstack/react-query": "^5.59.16",
     "axios": "^1.7.7",
     "clsx": "^2.1.1",

@@ -54,7 +54,7 @@ export function LoginPage() {
       </div>
 
       <form
-        onSubmit={handleSubmit}
+        onSubmit={(e) => void handleSubmit(e)}
         className="rounded-xl border border-forest-200 bg-white p-5 shadow-sm"
         noValidate
       >

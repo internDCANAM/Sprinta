@@ -8,7 +8,7 @@ import type {
   DocumentSummary,
   Message,
   TimberPost,
-} from "@sprintaiso/shared";
+} from "@sprintaiso/api-types";
 import {
   fetchDeal,
   fetchDealCosts,
@@ -299,11 +299,11 @@ function MessagesTab({ dealId }: { dealId: string }) {
     mutationFn: (text: string) => sendDealMessage(dealId, text),
     onSuccess: () => {
       setBody("");
-      qc.invalidateQueries({ queryKey: ["deal", dealId, "messages"] });
+      void qc.invalidateQueries({ queryKey: ["deal", dealId, "messages"] });
     },
   });
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
     const trimmed = body.trim();
     if (!trimmed) return;

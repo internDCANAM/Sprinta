@@ -28,7 +28,7 @@ export function AppHeader() {
         </div>
         {user && (
           <button
-            onClick={handleLogout}
+            onClick={() => void handleLogout()}
             className="rounded-md px-2.5 py-1.5 text-sm text-forest-700 hover:bg-forest-50"
           >
             Logga ut

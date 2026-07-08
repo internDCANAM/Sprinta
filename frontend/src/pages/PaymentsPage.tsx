@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Payment } from "@sprintaiso/shared";
+import type { Payment } from "@sprintaiso/api-types";
 import { fetchPayments } from "../api/endpoints";
 import { Card } from "../components/Card";
 import { StatusBadge } from "../components/StatusBadge";

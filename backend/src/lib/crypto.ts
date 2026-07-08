@@ -1,9 +1,8 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
+import { createCipheriv, randomBytes, createHash } from 'node:crypto';
 import { env } from '../config/env.js';
 
-const ALGORITHM = 'aes-256-gcm';    // AES-256 in GCM — authenticated encryption
-const IV_LENGTH = 12;               // 96 bits — GCM's standard IV size
-const AUTH_TAG_LENGTH = 16;         // 128 bits — strongest forgery protection
+const ALGORITHM = 'aes-256-gcm'; // AES-256 in GCM — authenticated encryption
+const IV_LENGTH = 12; // 96 bits — GCM's standard IV size
 
 const keyBuffer = Buffer.from(env.ENCRYPTION_KEY, 'hex'); // parsed once, reused every call
 
@@ -12,9 +11,6 @@ const keyBuffer = Buffer.from(env.ENCRYPTION_KEY, 'hex'); // parsed once, reused
  *
  * A fresh random IV is generated on every call, so encrypting the same value
  * twice produces different ciphertext — preventing pattern analysis on stored data.
- *
- * The returned string is self-contained: it embeds the IV and GCM auth tag so
- * {@link decrypt} needs no extra arguments.
  *
  * @param plaintext - UTF-8 string to encrypt (e.g. a personnummer or bank account number)
  * @returns Base64-encoded `iv || authTag || ciphertext` (12 + 16 + n bytes)
@@ -26,26 +22,6 @@ export function encrypt(plaintext: string): string {
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return Buffer.concat([iv, authTag, ciphertext]).toString('base64');
-}
-
-/**
- * Decrypts a payload produced by {@link encrypt}.
- *
- * GCM mode verifies the auth tag before returning plaintext.
- *
- * @param payload - Base64-encoded `iv || authTag || ciphertext` as returned by {@link encrypt}
- * @returns Decrypted UTF-8 string
- * @throws If the ciphertext or auth tag has been tampered with, rather than returning corrupt data
- * @see {@link createDecipheriv} — underlying Node.js primitive
- */
-export function decrypt(payload: string): string {
-  const buf = Buffer.from(payload, 'base64');
-  const iv = buf.subarray(0, IV_LENGTH);
-  const authTag = buf.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
-  const ciphertext = buf.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
-  const decipher = createDecipheriv(ALGORITHM, keyBuffer, iv);
-  decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
 /**

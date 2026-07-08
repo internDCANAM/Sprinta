@@ -16,9 +16,8 @@
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "@sprintaiso/shared": ["../shared/src/index.ts"],
-      "@sprintaiso/shared/*": ["../shared/src/*"]
+      "@sprintaiso/api-types": ["../backend/src/dto/api-types.ts"]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts", "tailwind.config.ts"]
 }
