@@ -65,10 +65,17 @@ pnpm install
 ### 4. Initialize the database
 
 ```bash
-pnpm backend prisma:generate    # generate Prisma client from schema
-pnpm backend prisma:migrate     # create tables and indexes
-pnpm backend db:seed            # create the one admin account (from SEED_ADMIN_EMAIL/PASSWORD)
+pnpm backend prisma:generate        # generate Prisma client from schema
+pnpm backend prisma:migrate:deploy  # apply committed migrations — create tables and indexes
+pnpm backend db:seed                # create the one admin account (from SEED_ADMIN_EMAIL/PASSWORD)
 ```
+
+`prisma:migrate:deploy`  
+For first-time setup, CI, and anything that isn't active schema authoring.
+
+`prisma:migrate`  
+Use when `schema.prisma` is edited and need a new migration file. Opens a shadow
+database to diff against and can prompt interactively.
 
 ## Running locally
 
