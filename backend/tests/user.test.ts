@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { test, expect } from 'vitest';
-import bcrypt from 'bcrypt';
+import * as bcrypt from 'bcrypt';
 import { prisma } from '../src/lib/prisma';
 import { Locale, UserRole } from '../prisma/generated/prisma/client';
 
@@ -20,7 +20,10 @@ test('createcustomer-bypassAPI', async () => {
     isActive: true,
   };
 
-  const user = await prisma.user.create({ data: mockCustomerPayload });
+  const user = await prisma.user.create({
+    data: { ...mockCustomerPayload, customer: { create: {} } },
+    include: { customer: true },
+  });
 
   expect(user.id).toBeDefined();
   expect(user.email).toBe(mockCustomerPayload.email);
