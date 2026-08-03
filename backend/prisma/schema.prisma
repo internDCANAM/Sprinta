@@ -12,12 +12,6 @@ enum Locale {
   SV @map("sv")
 }
 
-enum UserRole {
-  CUSTOMER
-  ADMIN
-  SUPERADMIN
-}
-
 enum DealType {
   REGENERATION_FELLING
   THINNING
@@ -50,11 +44,6 @@ enum DocumentType {
   MISC
 }
 
-enum MessageSenderRole {
-  CUSTOMER
-  ADMIN
-}
-
 enum PaymentStatus {
   PLANNED
   COMPLETED
@@ -70,29 +59,14 @@ enum SecurityEventSeverity {
 
 model User {
   id           String   @id @default(uuid()) @db.Uuid
-  locale       Locale
+  isAdmin      Boolean  @default(false) @map("is_admin")
   email        String   @unique
   passwordHash String   @map("password_hash")
-  role         UserRole
   name         String
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  customer      Customer?
-  assignedDeals Deal[]      @relation("AssignedAdmin")
-  createdEvents DealEvent[]
-  uploadedDocs  Document[]
-  sentMessages  Message[]
-  auditEntries  AuditLog[]
-
-  @@map("users")
-}
-
-model Customer {
-  id                   String    @id @default(uuid()) @db.Uuid
-  userId               String    @unique @map("user_id") @db.Uuid
-  personalIdEncrypted  String?   @map("personal_id_encrypted")
   addressStreet        String?   @map("address_street")
   addressPostal        String?   @map("address_postal")
   addressCity          String?   @map("address_city")
@@ -100,21 +74,23 @@ model Customer {
   bankAccountMasked    String?   @map("bank_account_masked")
   bankAccountEncrypted String?   @map("bank_account_encrypted")
   bankAccountUpdatedAt DateTime? @map("bank_account_updated_at")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   properties Property[]
-  deals      Deal[]
-  documents  Document[]
-  payments   Payment[]
+  deals      Deal[]     @relation("OwnerDeals")
+  documents  Document[] @relation("OwnerDocuments")
 
-  @@map("customers")
+  assignedDeals Deal[]      @relation("AssignedTo")
+  createdEvents DealEvent[]
+  uploadedDocs  Document[]  @relation("DocumentUploader")
+  sentMessages  Message[]
+  auditEntries  AuditLog[]
+
+  @@map("users")
 }
 
 model Property {
   id           String   @id @default(uuid()) @db.Uuid
-  customerId   String   @map("customer_id") @db.Uuid
+  ownerId      String   @map("owner_id") @db.Uuid
   name         String
   cadastralId  String   @map("cadastral_id")
   municipality String
@@ -123,40 +99,39 @@ model Property {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  deals    Deal[]
+  owner User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  deals Deal[]
 
-  @@index([customerId])
+  @@index([ownerId])
   @@map("properties")
 }
 
 model Deal {
-  id                String     @id @default(uuid()) @db.Uuid
-  customerId        String     @map("customer_id") @db.Uuid
-  propertyId        String?    @map("property_id") @db.Uuid
-  externalId        String     @unique @map("external_id")
-  title             String
-  dealType          DealType   @map("deal_type")
-  status            DealStatus
-  estimatedGrossSek Decimal?   @map("estimated_gross_sek") @db.Decimal(14, 2)
-  finalGrossSek     Decimal?   @map("final_gross_sek") @db.Decimal(14, 2)
-  totalCostsSek     Decimal    @default(0) @map("total_costs_sek") @db.Decimal(14, 2)
-  assignedAdminId   String?    @map("assigned_admin_id") @db.Uuid
-  syncedAt          DateTime?  @map("synced_at")
-  createdAt         DateTime   @default(now()) @map("created_at")
-  updatedAt         DateTime   @updatedAt @map("updated_at")
+  id                  String     @id @default(uuid()) @db.Uuid
+  ownerId             String     @map("owner_id") @db.Uuid
+  propertyId          String?    @map("property_id") @db.Uuid
+  externalId          String     @unique @map("external_id")
+  title               String
+  dealType            DealType   @map("deal_type")
+  status              DealStatus
+  estimatedGrossMinor BigInt?    @map("estimated_gross_minor")
+  finalGrossMinor     BigInt?    @map("final_gross_minor")
+  assignedToId        String?    @map("assigned_to_id") @db.Uuid
+  syncedAt            DateTime?  @map("synced_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
-  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  property      Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  assignedAdmin User?        @relation("AssignedAdmin", fields: [assignedAdminId], references: [id], onDelete: SetNull)
-  events        DealEvent[]
-  timberPosts   TimberPost[]
-  costs         DealCost[]
-  documents     Document[]
-  messages      Message[]
-  payments      Payment[]
+  owner       User         @relation("OwnerDeals", fields: [ownerId], references: [id], onDelete: Restrict)
+  property    Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  assignedTo  User?        @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  events      DealEvent[]
+  timberPosts TimberPost[]
+  costs       DealCost[]
+  documents   Document[]
+  messages    Message[]
+  payments    Payment[]
 
-  @@index([customerId])
+  @@index([ownerId])
   @@index([propertyId])
   @@index([status])
   @@map("deals")
@@ -185,8 +160,8 @@ model TimberPost {
   dealId            String   @map("deal_id") @db.Uuid
   assortment        String
   volumeM3          Decimal  @map("volume_m3") @db.Decimal(12, 3)
-  pricePerM3Sek     Decimal  @map("price_per_m3_sek") @db.Decimal(10, 2)
-  grossSek          Decimal  @map("gross_sek") @db.Decimal(14, 2)
+  pricePerM3Minor   BigInt   @map("price_per_m3_minor")
+  grossMinor        BigInt   @map("gross_minor")
   measurementSource String?  @map("measurement_source")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -198,12 +173,12 @@ model TimberPost {
 }
 
 model DealCost {
-  id        String   @id @default(uuid()) @db.Uuid
-  dealId    String   @map("deal_id") @db.Uuid
-  costType  String   @map("cost_type")
-  amountSek Decimal  @map("amount_sek") @db.Decimal(14, 2)
-  note      String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @db.Uuid
+  dealId      String   @map("deal_id") @db.Uuid
+  costType    String   @map("cost_type")
+  amountMinor BigInt   @map("amount_minor")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
 
   deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
@@ -214,7 +189,7 @@ model DealCost {
 model Document {
   id         String       @id @default(uuid()) @db.Uuid
   dealId     String?      @map("deal_id") @db.Uuid
-  customerId String       @map("customer_id") @db.Uuid
+  ownerId    String       @map("owner_id") @db.Uuid
   docType    DocumentType @map("doc_type")
   filename   String
   storageKey String       @map("storage_key")
@@ -223,24 +198,22 @@ model Document {
   uploadedBy String       @map("uploaded_by") @db.Uuid
   createdAt  DateTime     @default(now()) @map("created_at")
 
-  deal     Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  uploader User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  deal     Deal? @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  owner    User  @relation("OwnerDocuments", fields: [ownerId], references: [id], onDelete: Restrict)
+  uploader User  @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
 
   @@index([dealId])
-  @@index([customerId])
+  @@index([ownerId])
   @@map("documents")
 }
 
 model Message {
-  id          String            @id @default(uuid()) @db.Uuid
-  dealId      String            @map("deal_id") @db.Uuid
-  senderId    String            @map("sender_id") @db.Uuid
-  senderRole  MessageSenderRole @map("sender_role")
-  body        String
-  attachments Json              @default("[]")
-  readAt      DateTime?         @map("read_at")
-  createdAt   DateTime          @default(now()) @map("created_at")
+  id        String    @id @default(uuid()) @db.Uuid
+  dealId    String    @map("deal_id") @db.Uuid
+  senderId  String    @map("sender_id") @db.Uuid
+  body      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   deal   Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
   sender User @relation(fields: [senderId], references: [id], onDelete: Restrict)
@@ -252,26 +225,22 @@ model Message {
 model Payment {
   id                String        @id @default(uuid()) @db.Uuid
   dealId            String        @map("deal_id") @db.Uuid
-  customerId        String        @map("customer_id") @db.Uuid
-  amountSek         Decimal       @map("amount_sek") @db.Decimal(14, 2)
+  amountMinor       BigInt        @map("amount_minor")
   paymentDate       DateTime      @map("payment_date")
   status            PaymentStatus
   reference         String?
   bankAccountMasked String        @map("bank_account_masked")
   externalPaymentId String?       @map("external_payment_id")
   createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
 
-  deal     Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Restrict)
 
   @@index([dealId])
-  @@index([customerId])
+  @@index([status])
   @@map("payments")
 }
 
-// TODO: Audit-logg skrivs inte automatiskt ännu — implementeras som
-// Prisma-extension eller middleware i kommande session när API-endpoints
-// byggs ut. Tabellen finns här så att framtida skrivningar har en plats.
 model AuditLog {
   id           String   @id @default(uuid()) @db.Uuid
   tableName    String   @map("table_name")
@@ -295,6 +264,7 @@ model SecurityEvent {
   id        String                @id @default(uuid()) @db.Uuid
   eventType String                @map("event_type")
   severity  SecurityEventSeverity
+  userId    String?               @map("user_id") @db.Uuid
   ipAddress String                @map("ip_address")
   userAgent String?               @map("user_agent")
   path      String?
