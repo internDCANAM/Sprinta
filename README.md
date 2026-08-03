@@ -1,7 +1,10 @@
-# Sprintaiso Kundportal
+# Sprinta
 
-Customer portal for a Swedish forestry company. Owners can track timber deals,
-view documents, message admins, and monitor payments.
+A portal for Swedish forestry landowners to track timber deals, view documents,
+message admins, and monitor payments. Built with ISO/IEC 27001
+information-security alignment in mind: encrypted-at-rest sensitive fields,
+hashed audit trails, rate-limited auth endpoints with security-event logging,
+and DB-checked (not token-cached) admin access.
 
 **Stack:** Express + Prisma + PostgreSQL + Redis + Vite + React 18 + Tailwind.
 
@@ -19,63 +22,27 @@ pnpm --version  # else run: npm install -g pnpm
 
 ## Setup
 
-### 1. Configure environment
+Copy the env files (Windows: `Copy-Item` instead of `cp`), generate
+`ENCRYPTION_KEY`, and set it in `backend/.env`:
 
-copy&paste + rename .env.example to .env or with commands:
-
-#### Linux & Mac
 ```bash
 cp .env.example .env
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
-```
-
-#### Windows
-```powershell
-Copy-Item .env.example .env
-Copy-Item backend\.env.example backend\.env
-Copy-Item frontend\.env.example frontend\.env
-```
-
-`ENCRYPTION_KEY` generation:
-
-```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Set in `backend/.env`  
-`SEED_ADMIN_EMAIL=<value>`  
-`SEED_ADMIN_PASSWORD=<value>`  
-`ENCRYPTION_KEY=<value>`
-
-### 2. Start the database
-
-```bash
-pnpm db:up
-```
-
-Starts PostgreSQL and Redis via Docker Compose. Verify with `docker compose ps`.
-
-### 3. Install dependencies
+Then:
 
 ```bash
 pnpm install
+pnpm db:up                    # postgres + redis via Docker Compose
+pnpm backend prisma:generate  # generate the Prisma client from schema.prisma
+pnpm backend prisma:push      # sync the schema — no migrations to run
 ```
 
-### 4. Initialize the database
-
-```bash
-pnpm backend prisma:generate        # generate Prisma client from schema
-pnpm backend prisma:migrate:deploy  # apply committed migrations — create tables and indexes
-pnpm backend db:seed                # create the one admin account (from SEED_ADMIN_EMAIL/PASSWORD)
-```
-
-`prisma:migrate:deploy`  
-For first-time setup, CI, and anything that isn't active schema authoring.
-
-`prisma:migrate`  
-Use when `schema.prisma` is edited and need a new migration file. Opens a shadow
-database to diff against and can prompt interactively.
+Run `pnpm backend test` or the tests from testui to create a real account ready
+to use against the running app.
 
 ## Running locally
 
@@ -93,36 +60,18 @@ pnpm backend build && pnpm backend start   # API from dist/, no watch/reload
 pnpm --filter @sprintaiso/frontend build   # portal, output in frontend/dist/
 ```
 
-## Project structure
-
-```
-.
-├── backend/            Express API, Prisma ORM, JWT auth, Redis sessions
-│   ├── src     
-│   │   ├── routes/     health, auth, me, deals, payments, admin
-│   │   ├── middleware/ auth, ownership, validate, rate limiting, i18n
-│   │   ├── lib/        crypto (PII), logger, prisma, redis, i18n catalog
-│   │   └── utils/      JWT signing/verification, HTTP errors, audit/security events
-│   └── prisma/         schema and migrations
-└── frontend/           Vite + React customer portal
-    └── src     
-        ├── pages/      page components
-        ├── components/ reusable UI
-        └── api/        API client (axios + TanStack Query)
-```
-
 ## Development
 
 ### ESLint
 
 ESLint enforces correctness and security rules across all packages.
 
-`eslint-plugin-security` is included for ISO 27001 A.8.28 (Secure Coding)
-compliance. It detects Node.js-specific vulnerabilities in your own code —
+`eslint-plugin-security` is included for ISO/IEC 27001 A.8.28 (Secure Coding)
+alignment. It detects Node.js-specific vulnerabilities in your own code —
 things Dependabot cannot catch because Dependabot only scans dependencies, not
 what you write.
 
-#### Rules
+#### Rules & Why
 
 - `@typescript-eslint/no-explicit-any` — bans the `any` type. TypeScript's
   safety guarantees only hold when everything is typed; `any` silently opts out
@@ -152,20 +101,6 @@ pnpm lint         # ESLint across all packages
 pnpm lint:fix     # auto-fix where possible
 pnpm typecheck    # tsc --noEmit across all packages
 ```
-
-### Prettier
-
-Prettier formats code automatically on save — indentation, quotes, semicolons,
-line breaks.
-
-Config lives in `.prettierrc` at the repo root. All editors read the same file,
-so formatting is consistent regardless of who commits.
-
-**VS Code:** install the [Prettier extension](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) `esbenp.prettier-vscode`
-
-**IntelliJ / WebStorm:** Settings → Languages & Frameworks → JavaScript →
-Prettier → set the Prettier package path to `<project>/node_modules/prettier`
-and enable "Run on save".
 
 ### Comments & TSDoc
 

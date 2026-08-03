@@ -14,7 +14,8 @@ deals, view documents, message admins, and monitor payments.
 | Type-check all packages | `pnpm -r typecheck` |
 | Start backend (dev) | `pnpm backend dev` |
 | Start frontend (dev) | `pnpm --filter @sprintaiso/frontend dev` |
+| Run backend tests | `pnpm backend test` |
 | Prisma studio | `pnpm backend prisma:studio` |
-| Seed database | `pnpm backend db:seed` |
+| Sync DB schema | `pnpm backend prisma:push` |
 | DB up (postgres + redis) | `pnpm db:up` |
 | DB reset | `pnpm db:reset` |
