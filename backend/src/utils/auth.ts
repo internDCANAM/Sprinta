@@ -11,6 +11,7 @@ const localeValues = Object.keys(languages) as [Locale, ...Locale[]];
 const AccessTokenPayloadSchema = z.object({
   userId: z.string(),
   locale: z.enum(localeValues),
+  isAdmin: z.boolean(),
 });
 
 /**

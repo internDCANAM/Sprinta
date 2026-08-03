@@ -1,6 +1,6 @@
-import { NavLink } from "react-router-dom";
-import clsx from "clsx";
-import { useAuth } from "../auth/AuthProvider";
+import { NavLink } from 'react-router-dom';
+import clsx from 'clsx';
+import { useAuth } from '../auth/AuthProvider';
 
 interface Item {
   to: string;
@@ -9,17 +9,17 @@ interface Item {
 }
 
 const CUSTOMER_ITEMS: Item[] = [
-  { to: "/deals", label: "Affärer", icon: "🌲" },
-  { to: "/payments", label: "Utbetalningar", icon: "💰" },
-  { to: "/profile", label: "Profil", icon: "👤" },
+  { to: '/deals', label: 'Affärer', icon: '🌲' },
+  { to: '/payments', label: 'Utbetalningar', icon: '💰' },
+  { to: '/profile', label: 'Profil', icon: '👤' },
 ];
 
-const ADMIN_ITEMS: Item[] = [{ to: "/admin", label: "Översikt", icon: "🗂" }];
+const ADMIN_ITEMS: Item[] = [{ to: '/admin', label: 'Översikt', icon: '🗂' }];
 
 export function BottomNav() {
   const { user } = useAuth();
   if (!user) return null;
-  const items = user.role === "CUSTOMER" ? CUSTOMER_ITEMS : ADMIN_ITEMS;
+  const items = user.isAdmin ? ADMIN_ITEMS : CUSTOMER_ITEMS;
 
   return (
     <nav
@@ -31,13 +31,13 @@ export function BottomNav() {
           <li key={item.to} className="flex-1">
             <NavLink
               to={item.to}
-              end={item.to === "/deals" || item.to === "/admin"}
+              end={item.to === '/deals' || item.to === '/admin'}
               className={({ isActive }) =>
                 clsx(
-                  "flex flex-col items-center gap-0.5 py-2 text-xs transition",
+                  'flex flex-col items-center gap-0.5 py-2 text-xs transition',
                   isActive
-                    ? "text-forest-700 font-medium"
-                    : "text-forest-900/60 hover:text-forest-700",
+                    ? 'text-forest-700 font-medium'
+                    : 'text-forest-900/60 hover:text-forest-700'
                 )
               }
             >

@@ -1,43 +1,34 @@
-const currency = new Intl.NumberFormat("sv-SE", {
-  style: "currency",
-  currency: "SEK",
-  maximumFractionDigits: 0,
-});
-
-const number2 = new Intl.NumberFormat("sv-SE", {
-  maximumFractionDigits: 2,
-});
-
-export function formatSek(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "—";
-  const num = typeof value === "string" ? Number(value) : value;
-  if (!Number.isFinite(num)) return "—";
-  return currency.format(num);
+/**
+ * The API sends money as an integer count of minor units (1/100 SEK). The
+ * division is the reason this is a function — rendering the raw value shows a
+ * figure 100x too large, and it looks entirely plausible on screen.
+ */
+export function formatMoney(minor: number | null | undefined): string {
+  if (minor === null || minor === undefined) return '—';
+  return `${(minor / 100).toFixed(2)} kr`;
 }
 
-export function formatNumber(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || value === "") return "—";
-  const num = typeof value === "string" ? Number(value) : value;
-  if (!Number.isFinite(num)) return "—";
-  return number2.format(num);
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  return value.toFixed(2);
 }
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return '—';
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("sv-SE");
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('sv-SE');
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return '—';
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("sv-SE", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('sv-SE', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }

@@ -1,16 +1,8 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import axios from "axios";
-import type { AuthUser, RefreshResponse } from "@sprintaiso/api-types";
-import { getAccessToken, setAccessToken } from "./tokenStore";
-import { loginRequest, logoutRequest } from "../api/endpoints";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import axios from 'axios';
+import type { AuthUser, RefreshResponse } from '@sprintaiso/api-types';
+import { getAccessToken, setAccessToken } from './tokenStore';
+import { loginRequest, logoutRequest } from '../api/endpoints';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -21,7 +13,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode; }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,9 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const res = await axios.post<RefreshResponse>(
-          "/api/v1/auth/refresh",
+          '/api/v1/auth/refresh',
           {},
-          { withCredentials: true },
+          { withCredentials: true }
         );
         if (cancelled) return;
         setAccessToken(res.data.accessToken);
@@ -45,11 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (payload) {
           setUser({
             id: payload.userId,
-            email: "",
-            name: "",
-            role: payload.role,
-            customerId: payload.customerId,
+            email: '',
+            name: '',
             locale: payload.locale,
+            isAdmin: payload.isAdmin,
           });
         }
       } catch {
@@ -82,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, loading, login, logout }),
-    [user, loading, login, logout],
+    [user, loading, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -90,22 +81,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth måste användas inom <AuthProvider>");
+  if (!ctx) throw new Error('useAuth måste användas inom <AuthProvider>');
   return ctx;
 }
 
 interface JwtPayload {
   userId: string;
-  role: AuthUser["role"];
-  customerId: string | null;
-  locale: AuthUser["locale"];
+  locale: AuthUser['locale'];
+  isAdmin: boolean;
 }
 
 function decodeJwtPayload(token: string): JwtPayload | null {
   try {
-    const base64 = token.split(".")[1];
+    const base64 = token.split('.')[1];
     if (!base64) return null;
-    const json = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
+    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
     return JSON.parse(json) as JwtPayload;
   } catch {
     return null;

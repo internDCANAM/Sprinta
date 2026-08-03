@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthProvider";
-import { Button } from "../components/Button";
-import { extractErrorMessage } from "../api/client";
-import { useToast } from "../components/ToastProvider";
+import { useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
+import { Button } from '../components/Button';
+import { extractErrorMessage } from '../api/client';
+import { useToast } from '../components/ToastProvider';
 
 export function LoginPage() {
   const { showToast } = useToast();
@@ -11,8 +11,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -21,16 +21,15 @@ export function LoginPage() {
     setErr(null);
     setSubmitting(true);
     try {
-      const user = await login(email, password);
-      showToast("Login successful", "success");
+      await login(email, password);
+      showToast('Login successful', 'success');
       const from = (location.state as { from?: string } | null)?.from;
-      const defaultHome = user.role === "CUSTOMER" ? "/deals" : "/admin";
-      navigate(from ?? defaultHome, { replace: true });
+      navigate(from ?? '/deals', { replace: true });
     } catch (e) {
-     // setErr(extractErrorMessage(e));
+      // setErr(extractErrorMessage(e));
       const message = extractErrorMessage(e);
       setErr(message);
-      showToast(message, "error");
+      showToast(message, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -44,7 +43,7 @@ export function LoginPage() {
           className="mx-auto mb-3 h-14 w-14 rounded-2xl"
           style={{
             background:
-              "linear-gradient(135deg, var(--green-700), var(--green-500))",
+              'linear-gradient(135deg, var(--green-700), var(--green-500))',
           }}
         />
         <h1 className="font-display text-2xl text-forest-900">Sprintaiso</h1>
@@ -92,7 +91,7 @@ export function LoginPage() {
         )}
 
         <Button type="submit" block disabled={submitting}>
-          {submitting ? "Loggar in..." : "Logga in"}
+          {submitting ? 'Loggar in...' : 'Logga in'}
         </Button>
       </form>
     </div>

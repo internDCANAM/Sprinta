@@ -63,8 +63,8 @@ async function login(req: Request, res: Response): Promise<LoginResponse> {
   logger.info(req.t.auth.success, { userId: user.id });
 
   return {
-    accessToken: signAccessToken({ userId: user.id, locale }),
-    user: { id: user.id, locale, email: user.email, name: user.name },
+    accessToken: signAccessToken({ userId: user.id, locale, isAdmin: user.isAdmin }),
+    user: { id: user.id, locale, email: user.email, name: user.name, isAdmin: user.isAdmin },
   };
 }
 
@@ -89,7 +89,13 @@ async function refresh(req: Request, res: Response): Promise<RefreshResponse> {
   await revokeRefreshToken(payload.userId, payload.tokenId);
   await startSession(res, user.id);
 
-  return { accessToken: signAccessToken({ userId: user.id, locale: resolveLocale(req) }) };
+  return {
+    accessToken: signAccessToken({
+      userId: user.id,
+      locale: resolveLocale(req),
+      isAdmin: user.isAdmin,
+    }),
+  };
 }
 
 async function logout(req: Request, res: Response): Promise<void> {

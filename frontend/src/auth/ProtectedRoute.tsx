@@ -1,15 +1,14 @@
-import { Navigate, useLocation } from "react-router-dom";
-import type { ReactNode } from "react";
-import type { UserRole } from "@sprintaiso/api-types";
-import { useAuth } from "./AuthProvider";
-import { LoadingSpinner } from "../components/LoadingSpinner";
+import { Navigate, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useAuth } from './AuthProvider';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 interface Props {
   children: ReactNode;
-  roles?: UserRole[];
+  adminOnly?: boolean;
 }
 
-export function ProtectedRoute({ children, roles }: Props) {
+export function ProtectedRoute({ children, adminOnly = false }: Props) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -17,9 +16,8 @@ export function ProtectedRoute({ children, roles }: Props) {
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
-  if (roles && !roles.includes(user.role)) {
-    const fallback = user.role === "CUSTOMER" ? "/deals" : "/admin";
-    return <Navigate to={fallback} replace />;
+  if (adminOnly && !user.isAdmin) {
+    return <Navigate to="/" replace />;
   }
   return <>{children}</>;
 }

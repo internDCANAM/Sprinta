@@ -21,6 +21,22 @@ export const dealSummarySchema = z.object({
   _count: z.object({ events: z.number(), timberPosts: z.number() }),
 });
 
+export const adminDealRowInclude = {
+  owner: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.DealInclude;
+
+export const adminDealRowSchema = z.object({
+  id: z.string(),
+  externalId: z.string(),
+  title: z.string(),
+  dealType: z.nativeEnum(DealType),
+  status: z.nativeEnum(DealStatus),
+  estimatedGrossMinor: minorUnits.nullable(),
+  finalGrossMinor: minorUnits.nullable(),
+  createdAt: isoDate,
+  owner: z.object({ id: z.string(), name: z.string(), email: z.string() }),
+});
+
 export const dealDetailInclude = {
   property: true,
   _count: {
@@ -117,22 +133,23 @@ export const messageInputSchema = z.object({
   body: z.string().min(1).max(5000),
 });
 
+export const createDealInputSchema = z.object({
+  ownerId: z.string(),
+  propertyId: z.string().optional(),
+  externalId: z.string().min(1).max(200),
+  title: z.string().min(1).max(300),
+  dealType: z.nativeEnum(DealType),
+  status: z.nativeEnum(DealStatus).default(DealStatus.PLANNED),
+  estimatedGrossMinor: z.number().int().nonnegative().optional(),
+});
+
 export type DealSummary = z.infer<typeof dealSummarySchema>;
 export type DealDetail = z.infer<typeof dealDetailSchema>;
+export type AdminDealRow = z.infer<typeof adminDealRowSchema>;
 export type DealEvent = z.infer<typeof dealEventSchema>;
 export type TimberPost = z.infer<typeof timberPostSchema>;
 export type DealCost = z.infer<typeof dealCostSchema>;
 export type DocumentSummary = z.infer<typeof documentSummarySchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type MessageInput = z.infer<typeof messageInputSchema>;
-
-export interface CreateDealInput {
-  customerId: string;
-  propertyId?: string;
-  externalId: string;
-  title: string;
-  dealType: DealType;
-  status?: DealStatus;
-  estimatedGrossMinor?: number;
-  assignedAdminId?: string;
-}
+export type CreateDealInput = z.input<typeof createDealInputSchema>;

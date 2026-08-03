@@ -1,51 +1,32 @@
-import { useMemo, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import clsx from "clsx";
-import type {
-  DealCost,
-  DealEvent,
-  DocumentSummary,
-  Message,
-  TimberPost,
-} from "@sprintaiso/api-types";
-import {
-  fetchDeal,
-  fetchDealCosts,
-  fetchDealDocuments,
-  fetchDealEvents,
-  fetchDealMessages,
-  fetchDealTimber,
-  sendDealMessage,
-} from "../api/endpoints";
-import { StatusBadge } from "../components/StatusBadge";
-import { LoadingSpinner } from "../components/LoadingSpinner";
-import { ErrorMessage } from "../components/ErrorMessage";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import {
-  formatDate,
-  formatDateTime,
-  formatNumber,
-  formatSek,
-} from "../lib/format";
-import { useAuth } from "../auth/AuthProvider";
+import { useMemo, useState, type FormEvent } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
+import type { DealCost, DealEvent, DocumentSummary, Message, TimberPost } from '@sprintaiso/api-types';
+import { fetchDeal, fetchDealCosts, fetchDealDocuments, fetchDealEvents, fetchDealMessages, fetchDealTimber, sendDealMessage } from '../api/endpoints';
+import { StatusBadge } from '../components/StatusBadge';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorMessage } from '../components/ErrorMessage';
+import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { formatDate, formatDateTime, formatNumber, formatMoney } from '../lib/format';
+import { useAuth } from '../auth/AuthProvider';
 
-type Tab = "overview" | "economy" | "messages" | "documents";
+type Tab = 'overview' | 'economy' | 'messages' | 'documents';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Översikt" },
-  { id: "economy", label: "Ekonomi" },
-  { id: "messages", label: "Meddelanden" },
-  { id: "documents", label: "Dokument" },
+const TABS: { id: Tab; label: string; }[] = [
+  { id: 'overview', label: 'Översikt' },
+  { id: 'economy', label: 'Ekonomi' },
+  { id: 'messages', label: 'Meddelanden' },
+  { id: 'documents', label: 'Dokument' },
 ];
 
 export function DealDetailPage() {
-  const { id = "" } = useParams();
-  const [tab, setTab] = useState<Tab>("overview");
+  const { id = '' } = useParams();
+  const [tab, setTab] = useState<Tab>('overview');
 
   const deal = useQuery({
-    queryKey: ["deal", id],
+    queryKey: ['deal', id],
     queryFn: () => fetchDeal(id),
     enabled: Boolean(id),
   });
@@ -66,7 +47,7 @@ export function DealDetailPage() {
             <h1 className="truncate font-display text-xl">{deal.data.title}</h1>
             <p className="text-xs text-forest-900/60">
               {deal.data.externalId}
-              {deal.data.property?.name ? ` · ${deal.data.property.name}` : ""}
+              {deal.data.property?.name ? ` · ${deal.data.property.name}` : ''}
             </p>
           </div>
           <StatusBadge status={deal.data.status} />
@@ -79,10 +60,10 @@ export function DealDetailPage() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={clsx(
-              "flex-1 whitespace-nowrap rounded-md px-3 py-2 text-sm transition",
+              'flex-1 whitespace-nowrap rounded-md px-3 py-2 text-sm transition',
               tab === t.id
-                ? "bg-forest-700 text-white"
-                : "text-forest-900/70 hover:bg-forest-50",
+                ? 'bg-forest-700 text-white'
+                : 'text-forest-900/70 hover:bg-forest-50'
             )}
           >
             {t.label}
@@ -90,19 +71,19 @@ export function DealDetailPage() {
         ))}
       </div>
 
-      {tab === "overview" && <OverviewTab dealId={id} />}
-      {tab === "economy" && <EconomyTab dealId={id} />}
-      {tab === "messages" && <MessagesTab dealId={id} />}
-      {tab === "documents" && <DocumentsTab dealId={id} />}
+      {tab === 'overview' && <OverviewTab dealId={id} />}
+      {tab === 'economy' && <EconomyTab dealId={id} />}
+      {tab === 'messages' && <MessagesTab dealId={id} />}
+      {tab === 'documents' && <DocumentsTab dealId={id} />}
     </div>
   );
 }
 
 // ------------------------ Tabs ------------------------
 
-function OverviewTab({ dealId }: { dealId: string }) {
+function OverviewTab({ dealId }: { dealId: string; }) {
   const events = useQuery({
-    queryKey: ["deal", dealId, "events"],
+    queryKey: ['deal', dealId, 'events'],
     queryFn: () => fetchDealEvents(dealId),
   });
   if (events.isLoading) return <LoadingSpinner />;
@@ -140,17 +121,17 @@ function OverviewTab({ dealId }: { dealId: string }) {
   );
 }
 
-function TimelineItem({ event }: { event: DealEvent }) {
+function TimelineItem({ event }: { event: DealEvent; }) {
   const done = Boolean(event.actualDate);
   return (
     <li className="flex gap-3">
       <div className="flex flex-col items-center">
         <span
           className={clsx(
-            "h-3 w-3 rounded-full border-2",
+            'h-3 w-3 rounded-full border-2',
             done
-              ? "border-forest-700 bg-forest-700"
-              : "border-forest-500 bg-white",
+              ? 'border-forest-700 bg-forest-700'
+              : 'border-forest-500 bg-white'
           )}
         />
         <span className="mt-1 flex-1 w-px bg-forest-200" />
@@ -162,7 +143,7 @@ function TimelineItem({ event }: { event: DealEvent }) {
             ? `Genomfört ${formatDate(event.actualDate)}`
             : event.plannedDate
               ? `Planerat ${formatDate(event.plannedDate)}`
-              : "Ej daterat"}
+              : 'Ej daterat'}
         </p>
         {event.note && (
           <p className="mt-1 text-sm text-forest-900/80">{event.note}</p>
@@ -172,24 +153,24 @@ function TimelineItem({ event }: { event: DealEvent }) {
   );
 }
 
-function EconomyTab({ dealId }: { dealId: string }) {
+function EconomyTab({ dealId }: { dealId: string; }) {
   const timber = useQuery({
-    queryKey: ["deal", dealId, "timber"],
+    queryKey: ['deal', dealId, 'timber'],
     queryFn: () => fetchDealTimber(dealId),
   });
   const costs = useQuery({
-    queryKey: ["deal", dealId, "costs"],
+    queryKey: ['deal', dealId, 'costs'],
     queryFn: () => fetchDealCosts(dealId),
   });
 
   const totals = useMemo(() => {
     const gross = (timber.data ?? []).reduce(
-      (s: number, p: TimberPost) => s + Number(p.grossSek),
-      0,
+      (s: number, p: TimberPost) => s + p.grossMinor,
+      0
     );
     const cost = (costs.data ?? []).reduce(
-      (s: number, c: DealCost) => s + Number(c.amountSek),
-      0,
+      (s: number, c: DealCost) => s + c.amountMinor,
+      0
     );
     return { gross, cost, net: gross - cost };
   }, [timber.data, costs.data]);
@@ -226,10 +207,10 @@ function EconomyTab({ dealId }: { dealId: string }) {
                       {formatNumber(p.volumeM3)}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {formatSek(p.pricePerM3Sek)}
+                      {formatMoney(p.pricePerM3Minor)}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {formatSek(p.grossSek)}
+                      {formatMoney(p.grossMinor)}
                     </td>
                   </tr>
                 ))}
@@ -257,7 +238,7 @@ function EconomyTab({ dealId }: { dealId: string }) {
                   <tr key={c.id} className="border-t border-forest-200">
                     <td className="px-3 py-2">{c.costType}</td>
                     <td className="px-3 py-2 text-right">
-                      {formatSek(c.amountSek)}
+                      {formatMoney(c.amountMinor)}
                     </td>
                   </tr>
                 ))}
@@ -270,36 +251,36 @@ function EconomyTab({ dealId }: { dealId: string }) {
       <section className="rounded-xl border border-forest-200 bg-white p-4">
         <div className="flex justify-between text-sm">
           <span>Brutto</span>
-          <span className="font-medium">{formatSek(totals.gross)}</span>
+          <span className="font-medium">{formatMoney(totals.gross)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span>Kostnader</span>
-          <span className="font-medium">−{formatSek(totals.cost)}</span>
+          <span className="font-medium">−{formatMoney(totals.cost)}</span>
         </div>
         <div className="mt-2 flex justify-between border-t border-forest-200 pt-2">
           <span className="font-medium">Netto</span>
-          <span className="font-display text-lg">{formatSek(totals.net)}</span>
+          <span className="font-display text-lg">{formatMoney(totals.net)}</span>
         </div>
       </section>
     </div>
   );
 }
 
-function MessagesTab({ dealId }: { dealId: string }) {
+function MessagesTab({ dealId }: { dealId: string; }) {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState('');
 
   const messages = useQuery({
-    queryKey: ["deal", dealId, "messages"],
+    queryKey: ['deal', dealId, 'messages'],
     queryFn: () => fetchDealMessages(dealId),
   });
 
   const send = useMutation({
     mutationFn: (text: string) => sendDealMessage(dealId, text),
     onSuccess: () => {
-      setBody("");
-      void qc.invalidateQueries({ queryKey: ["deal", dealId, "messages"] });
+      setBody('');
+      void qc.invalidateQueries({ queryKey: ['deal', dealId, 'messages'] });
     },
   });
 
@@ -337,7 +318,7 @@ function MessagesTab({ dealId }: { dealId: string }) {
           className="flex-1 rounded-lg border border-forest-200 bg-white px-3 py-2 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-500/30"
         />
         <Button type="submit" disabled={send.isPending || !body.trim()}>
-          {send.isPending ? "..." : "Skicka"}
+          {send.isPending ? '...' : 'Skicka'}
         </Button>
       </form>
       {send.error && <ErrorMessage error={send.error} />}
@@ -345,22 +326,22 @@ function MessagesTab({ dealId }: { dealId: string }) {
   );
 }
 
-function MessageBubble({ message, own }: { message: Message; own: boolean }) {
+function MessageBubble({ message, own }: { message: Message; own: boolean; }) {
   return (
-    <div className={clsx("flex", own ? "justify-end" : "justify-start")}>
+    <div className={clsx('flex', own ? 'justify-end' : 'justify-start')}>
       <div
         className={clsx(
-          "max-w-[80%] rounded-2xl px-3 py-2 text-sm",
+          'max-w-[80%] rounded-2xl px-3 py-2 text-sm',
           own
-            ? "bg-forest-700 text-white"
-            : "border border-forest-200 bg-white text-forest-900",
+            ? 'bg-forest-700 text-white'
+            : 'border border-forest-200 bg-white text-forest-900'
         )}
       >
         <p className="whitespace-pre-wrap">{message.body}</p>
         <p
           className={clsx(
-            "mt-1 text-[10px]",
-            own ? "text-white/70" : "text-forest-900/50",
+            'mt-1 text-[10px]',
+            own ? 'text-white/70' : 'text-forest-900/50'
           )}
         >
           {message.sender.name} · {formatDateTime(message.createdAt)}
@@ -370,9 +351,9 @@ function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   );
 }
 
-function DocumentsTab({ dealId }: { dealId: string }) {
+function DocumentsTab({ dealId }: { dealId: string; }) {
   const docs = useQuery({
-    queryKey: ["deal", dealId, "documents"],
+    queryKey: ['deal', dealId, 'documents'],
     queryFn: () => fetchDealDocuments(dealId),
   });
 
@@ -391,7 +372,7 @@ function DocumentsTab({ dealId }: { dealId: string }) {
               <div className="min-w-0">
                 <p className="truncate font-medium">{d.filename}</p>
                 <p className="text-xs text-forest-900/60">
-                  {d.docType} · {(d.sizeBytes / 1024).toFixed(0)} kB ·{" "}
+                  {d.docType} · {(d.sizeBytes / 1024).toFixed(0)} kB ·{' '}
                   {formatDate(d.createdAt)}
                 </p>
               </div>

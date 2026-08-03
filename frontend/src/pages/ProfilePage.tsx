@@ -1,18 +1,14 @@
-import { useState, type FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CustomerProfile } from "@sprintaiso/api-types";
-import {
-  fetchMe,
-  updateBankAccount,
-  updateProfile,
-} from "../api/endpoints";
-import { Button } from "../components/Button";
-import { LoadingSpinner } from "../components/LoadingSpinner";
-import { ErrorMessage } from "../components/ErrorMessage";
-import { formatDate } from "../lib/format";
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { UserProfile } from '@sprintaiso/api-types';
+import { fetchMe, updateBankAccount, updateProfile } from '../api/endpoints';
+import { Button } from '../components/Button';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorMessage } from '../components/ErrorMessage';
+import { formatDate } from '../lib/format';
 
 export function ProfilePage() {
-  const me = useQuery({ queryKey: ["me"], queryFn: fetchMe });
+  const me = useQuery({ queryKey: ['me'], queryFn: fetchMe });
 
   if (me.isLoading) return <LoadingSpinner />;
   if (me.error) return <ErrorMessage error={me.error} />;
@@ -27,15 +23,15 @@ export function ProfilePage() {
   );
 }
 
-function ProfileForm({ profile }: { profile: CustomerProfile }) {
+function ProfileForm({ profile }: { profile: UserProfile; }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
-    name: profile.user.name,
-    email: profile.user.email,
-    phone: profile.phone ?? "",
-    addressStreet: profile.address.street ?? "",
-    addressPostal: profile.address.postal ?? "",
-    addressCity: profile.address.city ?? "",
+    name: profile.name,
+    email: profile.email,
+    phone: profile.phone ?? '',
+    addressStreet: profile.addressStreet ?? '',
+    addressPostal: profile.addressPostal ?? '',
+    addressCity: profile.addressCity ?? '',
   });
   const [saved, setSaved] = useState(false);
 
@@ -48,7 +44,7 @@ function ProfileForm({ profile }: { profile: CustomerProfile }) {
     mutationFn: updateProfile,
     onSuccess: () => {
       setSaved(true);
-      void qc.invalidateQueries({ queryKey: ["me"] });
+      void qc.invalidateQueries({ queryKey: ['me'] });
     },
   });
 
@@ -118,25 +114,25 @@ function ProfileForm({ profile }: { profile: CustomerProfile }) {
       )}
 
       <Button type="submit" disabled={save.isPending}>
-        {save.isPending ? "Sparar..." : "Spara"}
+        {save.isPending ? 'Sparar...' : 'Spara'}
       </Button>
     </form>
   );
 }
 
-function BankAccountSection({ profile }: { profile: CustomerProfile }) {
+function BankAccountSection({ profile }: { profile: UserProfile; }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const [confirmed, setConfirmed] = useState(false);
 
   const mutation = useMutation({
     mutationFn: updateBankAccount,
     onSuccess: () => {
       setEditing(false);
-      setValue("");
+      setValue('');
       setConfirmed(false);
-      void qc.invalidateQueries({ queryKey: ["me"] });
+      void qc.invalidateQueries({ queryKey: ['me'] });
     },
   });
 
@@ -150,10 +146,10 @@ function BankAccountSection({ profile }: { profile: CustomerProfile }) {
     <section className="space-y-3 rounded-xl border border-forest-200 bg-white p-4">
       <h2 className="text-lg">Bankkonto</h2>
       <p className="text-sm text-forest-900/80">
-        Aktuellt kontonummer: <strong>{profile.bankAccountMasked ?? "—"}</strong>
+        Aktuellt kontonummer: <strong>{profile.bankAccountMasked ?? '—'}</strong>
         {profile.bankAccountUpdatedAt && (
           <>
-            {" "}
+            {' '}
             (uppdaterat {formatDate(profile.bankAccountUpdatedAt)})
           </>
         )}
@@ -170,7 +166,7 @@ function BankAccountSection({ profile }: { profile: CustomerProfile }) {
           <div
             role="alert"
             className="rounded-lg border border-[color:var(--gold)]/40 bg-[color:var(--gold)]/10 px-3 py-2 text-sm text-[color:var(--gold)]"
-            style={{ color: "var(--gold)" }}
+            style={{ color: 'var(--gold)' }}
           >
             <strong>Viktigt:</strong> kontonummerbyte loggas alltid med IP-adress
             och tidpunkt i vår revisionslogg.
@@ -203,14 +199,14 @@ function BankAccountSection({ profile }: { profile: CustomerProfile }) {
               type="submit"
               disabled={!confirmed || !value.trim() || mutation.isPending}
             >
-              {mutation.isPending ? "Sparar..." : "Bekräfta ändring"}
+              {mutation.isPending ? 'Sparar...' : 'Bekräfta ändring'}
             </Button>
             <Button
               type="button"
               variant="ghost"
               onClick={() => {
                 setEditing(false);
-                setValue("");
+                setValue('');
                 setConfirmed(false);
               }}
             >
@@ -227,7 +223,7 @@ function Field({
   label,
   value,
   onChange,
-  type = "text",
+  type = 'text',
   placeholder,
 }: {
   label: string;

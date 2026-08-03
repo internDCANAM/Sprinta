@@ -97,6 +97,7 @@ export interface AuthUser {
   locale: Locale;
   email: string;
   name: string;
+  isAdmin: boolean;
 }
 
 export interface LoginResponse {

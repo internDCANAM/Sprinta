@@ -1,15 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import type { Payment } from "@sprintaiso/api-types";
-import { fetchPayments } from "../api/endpoints";
-import { Card } from "../components/Card";
-import { StatusBadge } from "../components/StatusBadge";
-import { LoadingSpinner } from "../components/LoadingSpinner";
-import { ErrorMessage } from "../components/ErrorMessage";
-import { formatDate, formatSek } from "../lib/format";
+import { useQuery } from '@tanstack/react-query';
+import type { Payment } from '@sprintaiso/api-types';
+import { fetchPayments } from '../api/endpoints';
+import { Card } from '../components/Card';
+import { StatusBadge } from '../components/StatusBadge';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorMessage } from '../components/ErrorMessage';
+import { formatDate, formatMoney } from '../lib/format';
 
 export function PaymentsPage() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["payments"],
+    queryKey: ['payments'],
     queryFn: fetchPayments,
   });
 
@@ -30,7 +30,7 @@ export function PaymentsPage() {
               <Card>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-medium">{formatSek(p.amountSek)}</p>
+                    <p className="font-medium">{formatMoney(p.amountMinor)}</p>
                     <p className="text-xs text-forest-900/60">
                       {formatDate(p.paymentDate)} · {p.bankAccountMasked}
                     </p>
