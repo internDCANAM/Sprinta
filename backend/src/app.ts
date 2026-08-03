@@ -11,11 +11,11 @@ import { authRouter } from './routes/auth.js';
 import { meRouter } from './routes/me.js';
 import { dealsRouter } from './routes/deals.js';
 import { paymentsRouter } from './routes/payments.js';
-import { adminRouter } from './routes/admin.js';
 import { configRouter } from './routes/config.js';
+import { adminRouter } from './routes/admin.js';
 import { NodeEnv } from './config/enums.js';
 import { i18n } from './middleware/i18n.middleware.js';
-import { createTranslator } from './lib/i18n.js';
+import type { Translations } from './lib/i18n.js';
 import { AccessTokenPayload } from './utils/auth.js';
 import { Deal } from '../prisma/generated/prisma/client.js';
 
@@ -26,7 +26,7 @@ declare global {
     interface Request {
       user?: AccessTokenPayload;
       deal?: Deal;
-      t: ReturnType<typeof createTranslator>;
+      t: Translations;
     }
   }
 }
@@ -56,8 +56,8 @@ export function createApp(): Express {
   app.use('/api/v1/me', meRouter);
   app.use('/api/v1/deals', dealsRouter);
   app.use('/api/v1/payments', paymentsRouter);
-  app.use('/api/v1/admin', adminRouter);
   app.use('/api/v1/config', configRouter);
+  app.use('/api/v1/admin', adminRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
 

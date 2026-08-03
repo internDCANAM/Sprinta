@@ -1,9 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { UserRole } from '../../prisma/generated/prisma/client.js';
-import { verifyAccessToken } from '../utils/auth.js';
-import { forbidden, unauthorized } from '../utils/http.js';
+import { verifyAccessToken, type AuthenticatedRequest } from '../utils/auth.js';
+import { asyncHandler, forbidden, unauthorized } from '../utils/http.js';
 import { createTranslator } from '../lib/i18n.js';
 import { extractLocale } from './i18n.middleware.js';
+import { prisma } from '../lib/prisma.js';
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const header = req.get('authorization');
@@ -13,9 +13,6 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
   const token = header.slice(7).trim();
   try {
     req.user = verifyAccessToken(token);
-    // The global i18n middleware ran before req.user existed, so req.t was
-    // built without it. Now that the user's stored locale is available,
-    // re-derive req.t so authenticated responses honor it.
     req.t = createTranslator(extractLocale(req) ?? 'sv');
     next();
   } catch {
@@ -23,10 +20,17 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
   }
 }
 
-export function roleMiddleware(allowed: UserRole[]) {
-  return (req: Request, _res: Response, next: NextFunction): void => {
-    if (!req.user) return next(unauthorized(req));
-    if (!allowed.includes(req.user.role)) return next(forbidden(req));
-    next();
-  };
-}
+/**
+ * Gates a router on `users.is_admin`. Runs after {@link authMiddleware}, and
+ * reads the flag from the database rather than the access token so that
+ * revoking admin takes effect immediately instead of at the next token
+ * refresh.
+ */
+export const adminMiddleware = asyncHandler<AuthenticatedRequest>(async (req, _res, next) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.userId },
+    select: { isAdmin: true },
+  });
+  if (!user?.isAdmin) return next(forbidden(req));
+  next();
+});

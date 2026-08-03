@@ -1,162 +1,98 @@
-import { Router } from "express";
-import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
-import { authMiddleware, roleMiddleware } from "../middleware/auth.js";
-import { dealOwnershipMiddleware, type DealRequest } from "../middleware/ownership.js";
-import { validate } from "../middleware/validate.js";
-import { asyncHandler, buildPagination, PaginationSchema,
-         forbidden, notFound, type PaginationQuery } from "../utils/http.js";
-import type { AuthenticatedRequest } from "../utils/auth.js";
+import { Router } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { dealOwnershipMiddleware, type DealRequest } from '../middleware/ownership.js';
+import { asyncHandler } from '../utils/http.js';
+import type { AuthenticatedRequest } from '../utils/auth.js';
+import { paginate, paginationQuerySchema, type Collection, type Paginated } from '../dto/pagination.js';
+import { dealCostSchema, dealDetailInclude, dealDetailSchema, dealEventSchema, dealSummaryInclude, dealSummarySchema, documentSummarySchema, messageInclude, messageInputSchema, messageSchema, timberPostSchema, type DealCost, type DealDetail, type DealEvent, type DealSummary, type DocumentSummary, type Message, type TimberPost } from '../dto/deal.js';
+
+async function listDeals(req: AuthenticatedRequest): Promise<Paginated<DealSummary>> {
+  const where = { ownerId: req.user.userId };
+  return paginate(
+    paginationQuerySchema.parse(req.query),
+    dealSummarySchema,
+    () => prisma.deal.count({ where }),
+    (skip, take) =>
+      prisma.deal.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: dealSummaryInclude,
+      })
+  );
+}
+
+async function readDeal(req: DealRequest): Promise<DealDetail> {
+  const deal = await prisma.deal.findUnique({
+    where: { id: req.deal.id },
+    include: dealDetailInclude,
+  });
+  return dealDetailSchema.parse(deal);
+}
+
+async function listEvents(req: DealRequest): Promise<Collection<DealEvent>> {
+  const events = await prisma.dealEvent.findMany({
+    where: { dealId: req.deal.id },
+    orderBy: [
+      { actualDate: { sort: 'asc', nulls: 'last' } },
+      { plannedDate: { sort: 'asc', nulls: 'last' } },
+      { createdAt: 'asc' },
+    ],
+  });
+  return { data: events.map((event) => dealEventSchema.parse(event)) };
+}
+
+async function listTimberPosts(req: DealRequest): Promise<Collection<TimberPost>> {
+  const posts = await prisma.timberPost.findMany({
+    where: { dealId: req.deal.id },
+    orderBy: { createdAt: 'asc' },
+  });
+  return { data: posts.map((post) => timberPostSchema.parse(post)) };
+}
+
+async function listCosts(req: DealRequest): Promise<Collection<DealCost>> {
+  const costs = await prisma.dealCost.findMany({
+    where: { dealId: req.deal.id },
+    orderBy: { createdAt: 'asc' },
+  });
+  return { data: costs.map((cost) => dealCostSchema.parse(cost)) };
+}
+
+async function listDocuments(req: DealRequest): Promise<Collection<DocumentSummary>> {
+  const docs = await prisma.document.findMany({
+    where: { dealId: req.deal.id },
+    orderBy: { createdAt: 'desc' },
+  });
+  return { data: docs.map((doc) => documentSummarySchema.parse(doc)) };
+}
+
+async function listMessages(req: DealRequest): Promise<Collection<Message>> {
+  const messages = await prisma.message.findMany({
+    where: { dealId: req.deal.id },
+    orderBy: { createdAt: 'asc' },
+    include: messageInclude,
+  });
+  return { data: messages.map((message) => messageSchema.parse(message)) };
+}
+
+async function postMessage(req: DealRequest): Promise<Message> {
+  const { body } = messageInputSchema.parse(req.body);
+  const message = await prisma.message.create({
+    data: { dealId: req.deal.id, senderId: req.user.userId, body },
+    include: messageInclude,
+  });
+  return messageSchema.parse(message);
+}
 
 export const dealsRouter = Router();
-
-dealsRouter.use(authMiddleware, roleMiddleware(["CUSTOMER"]));
-
-dealsRouter.get(
-  "/",
-  validate(PaginationSchema, "query"),
-  asyncHandler<AuthenticatedRequest>(async (req, res) => {
-    const customerId = req.user.customerId;
-    if (!customerId) throw forbidden(req);
-    const query: unknown = req.query;
-    const { page, limit } = query as PaginationQuery;
-
-    const [total, deals] = await Promise.all([
-      prisma.deal.count({ where: { customerId } }),
-      prisma.deal.findMany({
-        where: { customerId },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          property: { select: { id: true, name: true } },
-          _count: { select: { events: true, timberPosts: true } },
-        },
-      }),
-    ]);
-
-    res.json({ data: deals, pagination: buildPagination(page, limit, total) });
-  }),
-);
-
-dealsRouter.get(
-  "/:id",
-  dealOwnershipMiddleware,
-  asyncHandler(async (req, res) => {
-    const deal = await prisma.deal.findUnique({
-      where: { id: req.params.id },
-      include: {
-        property: true,
-        _count: {
-          select: {
-            events: true,
-            timberPosts: true,
-            costs: true,
-            documents: true,
-            messages: true,
-          },
-        },
-      },
-    });
-    if (!deal) throw notFound(req);
-    res.json(deal);
-  }),
-);
-
-dealsRouter.get(
-  "/:id/events",
-dealOwnershipMiddleware,
-  asyncHandler(async (req, res) => {
-    const events = await prisma.dealEvent.findMany({
-      where: { dealId: req.params.id },
-      orderBy: [
-        { actualDate: { sort: "asc", nulls: "last" } },
-        { plannedDate: { sort: "asc", nulls: "last" } },
-        { createdAt: "asc" },
-      ],
-    });
-    res.json({ data: events });
-  }),
-);
-
-dealsRouter.get(
-  "/:id/timber",
-  dealOwnershipMiddleware,
-  asyncHandler(async (req, res) => {
-    const posts = await prisma.timberPost.findMany({
-      where: { dealId: req.params.id },
-      orderBy: { createdAt: "asc" },
-    });
-    res.json({ data: posts });
-  }),
-);
-
-dealsRouter.get(
-  "/:id/costs",
-  dealOwnershipMiddleware,
-  asyncHandler(async (req, res) => {
-    const costs = await prisma.dealCost.findMany({
-      where: { dealId: req.params.id },
-      orderBy: { createdAt: "asc" },
-    });
-    res.json({ data: costs });
-  }),
-);
-
-dealsRouter.get(
-  "/:id/documents",
-  dealOwnershipMiddleware,
-  asyncHandler(async (req, res) => {
-    const docs = await prisma.document.findMany({
-      where: { dealId: req.params.id },
-      select: {
-        id: true,
-        docType: true,
-        filename: true,
-        mimeType: true,
-        sizeBytes: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({ data: docs });
-  }),
-);
-
-dealsRouter.get(
-  "/:id/messages",
-  dealOwnershipMiddleware,
-  asyncHandler(async (req, res) => {
-    const messages = await prisma.message.findMany({
-      where: { dealId: req.params.id },
-      orderBy: { createdAt: "asc" },
-      include: {
-        sender: { select: { id: true, name: true, role: true } },
-      },
-    });
-    res.json({ data: messages });
-  }),
-);
-
-const MessageSchema = z.object({
-  body: z.string().min(1).max(5000),
-});
-
-dealsRouter.post(
-  "/:id/messages",
-  dealOwnershipMiddleware,
-  validate(MessageSchema),
-  asyncHandler<DealRequest>(async (req, res) => {
-    const { body } = req.body as z.infer<typeof MessageSchema>;
-    const message = await prisma.message.create({
-      data: {
-        dealId: req.deal.id,
-        senderId: req.user.userId,
-        senderRole: req.user.role === "CUSTOMER" ? "CUSTOMER" : "ADMIN",
-        body,
-      },
-      include: { sender: { select: { id: true, name: true, role: true } } },
-    });
-    res.status(201).json(message);
-  }),
-);
+dealsRouter.use(authMiddleware);
+dealsRouter.get('/', asyncHandler<AuthenticatedRequest>(async (req, res) => res.json(await listDeals(req))));
+dealsRouter.get('/:id', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await readDeal(req))));
+dealsRouter.get('/:id/events', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listEvents(req))));
+dealsRouter.get('/:id/timber', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listTimberPosts(req))));
+dealsRouter.get('/:id/costs', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listCosts(req))));
+dealsRouter.get('/:id/documents', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listDocuments(req))));
+dealsRouter.get('/:id/messages', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listMessages(req))));
+dealsRouter.post('/:id/messages', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.status(201).json(await postMessage(req))));

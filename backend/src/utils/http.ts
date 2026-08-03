@@ -1,21 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { z } from 'zod';
-import type { Pagination } from '../dto/api-types.js';
-import {} from '../lib/i18n.js';
-import {} from '../middleware/i18n.middleware.js';
+import { ZodError } from 'zod';
+import { ErrorCode, type ApiErrorBody } from '../dto/error.js';
 import { logger } from '../lib/logger.js';
-
-export const ErrorCode = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  FORBIDDEN: 'FORBIDDEN',
-  NOT_FOUND: 'NOT_FOUND',
-  CONFLICT: 'CONFLICT',
-  RATE_LIMITED: 'RATE_LIMITED',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-} as const;
-
-export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
 export interface HttpError extends Error {
   readonly statusCode: number;
@@ -70,33 +56,44 @@ type AsyncHandler<TReq extends Request = Request> = (
  */
 export const asyncHandler =
   <TReq extends Request = Request>(fn: AsyncHandler<TReq>): RequestHandler =>
-  (req, res, next) => {
-    Promise.resolve(fn(req as TReq, res, next)).catch(next);
+    (req, res, next) => {
+      Promise.resolve(fn(req as TReq, res, next)).catch(next);
+    };
+
+/**
+ * The single place an {@link HttpError} becomes a response body, typed as
+ * {@link ApiErrorBody} so every field the contract requires is present — drop
+ * `code` here and it fails to compile, rather than reaching a client that
+ * switches on it.
+ */
+function toErrorBody(error: HttpError): ApiErrorBody {
+  return {
+    error: error.message,
+    code: error.code,
+    statusCode: error.statusCode,
+    ...(error.details !== undefined ? { details: error.details } : {}),
   };
-
-export const PaginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
-});
-
-export type PaginationQuery = z.infer<typeof PaginationSchema>;
-
-export function buildPagination(page: number, limit: number, total: number): Pagination {
-  return { page, limit, total, totalPages: Math.ceil(total / limit) };
 }
 
 export function notFoundHandler(req: Request, res: Response): void {
-  res.status(404).json({ error: req.t.http.notFound, statusCode: 404 });
+  const error = notFound(req);
+  res.status(error.statusCode).json(toErrorBody(error));
 }
 
+/**
+ * A schema parsed inside a handler throws a raw {@link ZodError} rather than
+ * an {@link HttpError}, and without this it would be reported as a 500 — the
+ * client's own malformed body blamed on the server. Every inbound payload is
+ * now parsed inline in its handler, so this one mapping covers every parse site.
+ */
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
-  if (isHttpError(err)) {
-    res.status(err.statusCode).json({
-      error: err.message,
-      code: err.code,
-      statusCode: err.statusCode,
-      ...(err.details ? { details: err.details } : {}),
-    });
+  const error =
+    err instanceof ZodError
+      ? badRequest(req, req.t.input.validationFailed, err.flatten().fieldErrors)
+      : err;
+
+  if (isHttpError(error)) {
+    res.status(error.statusCode).json(toErrorBody(error));
     return;
   }
 
@@ -111,5 +108,5 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     error: req.t.http.internalError,
     code: ErrorCode.INTERNAL_ERROR,
     statusCode: 500,
-  });
+  } satisfies ApiErrorBody);
 }

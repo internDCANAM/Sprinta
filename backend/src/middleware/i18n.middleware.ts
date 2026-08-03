@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { languages, createTranslator, type Locale } from '../lib/i18n.js';
+import { languages, createTranslator, DEFAULT_LOCALE, type Locale } from '../lib/i18n.js';
 
 const VALID_LOCALE = Object.keys(languages);
 
@@ -33,8 +33,15 @@ export function extractLocale(req: Request): Locale | undefined {
   return undefined;
 }
 
+/**
+ * The locale to actually use for a request — {@link extractLocale} reports
+ * what was asked for, this decides what happens when nothing was.
+ */
+export function resolveLocale(req: Request): Locale {
+  return extractLocale(req) ?? DEFAULT_LOCALE;
+}
+
 export function i18n(req: Request, res: Response, next: NextFunction) {
-  const locale = extractLocale(req) || 'sv'; // Get the locale. defaults to sv
-  req.t = createTranslator(locale);
+  req.t = createTranslator(resolveLocale(req));
   next();
 }

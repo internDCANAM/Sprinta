@@ -1,35 +1,28 @@
-import { Router } from "express";
-import { prisma } from "../lib/prisma.js";
-import { authMiddleware, roleMiddleware } from "../middleware/auth.js";
-import { validate } from "../middleware/validate.js";
-import { asyncHandler, buildPagination, PaginationSchema,
-         forbidden, type PaginationQuery } from "../utils/http.js";
-import type { AuthenticatedRequest } from "../utils/auth.js";
+import { Router } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { asyncHandler } from '../utils/http.js';
+import type { AuthenticatedRequest } from '../utils/auth.js';
+import { paginate, paginationQuerySchema, type Paginated } from '../dto/pagination.js';
+import { paymentInclude, paymentSchema, type Payment } from '../dto/payment.js';
+
+async function listPayments(req: AuthenticatedRequest): Promise<Paginated<Payment>> {
+  const where = { deal: { ownerId: req.user.userId } };
+  return paginate(
+    paginationQuerySchema.parse(req.query),
+    paymentSchema,
+    () => prisma.payment.count({ where }),
+    (skip, take) =>
+      prisma.payment.findMany({
+        where,
+        orderBy: { paymentDate: 'desc' },
+        skip,
+        take,
+        include: paymentInclude,
+      })
+  );
+}
 
 export const paymentsRouter = Router();
-
-paymentsRouter.use(authMiddleware, roleMiddleware(["CUSTOMER"]));
-
-paymentsRouter.get(
-  "/",
-  validate(PaginationSchema, "query"),
-  asyncHandler<AuthenticatedRequest>(async (req, res) => {
-    const customerId = req.user.customerId;
-    if (!customerId) throw forbidden(req);
-    const query: unknown = req.query;
-    const { page, limit } = query as PaginationQuery;
-
-    const [total, payments] = await Promise.all([
-      prisma.payment.count({ where: { customerId } }),
-      prisma.payment.findMany({
-        where: { customerId },
-        orderBy: { paymentDate: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: { deal: { select: { id: true, externalId: true, title: true } } },
-      }),
-    ]);
-
-    res.json({ data: payments, pagination: buildPagination(page, limit, total) });
-  }),
-);
+paymentsRouter.use(authMiddleware);
+paymentsRouter.get('/', asyncHandler<AuthenticatedRequest>(async (req, res) => res.json(await listPayments(req))));

@@ -3,6 +3,7 @@ import { sv } from './dict/sv.js';
 
 export const languages = { en, sv };
 export type Locale = keyof typeof languages;
+export const DEFAULT_LOCALE: Locale = 'sv';
 
 /**
  * Recursive type hack that makes TypeScript do something it really ought to
@@ -70,3 +71,10 @@ function createFluidProxy(target: Record<string, unknown>, key: string = ''): un
 export function createTranslator(locale: Locale = 'en') {
   return createFluidProxy(languages[locale]) as DeepFluid<typeof en>;
 }
+
+/**
+ * The dictionary a request carries as `req.t`. Anything that needs a localised
+ * string — a validation message built outside the route layer, for one — takes
+ * this rather than the whole Express request.
+ */
+export type Translations = ReturnType<typeof createTranslator>;

@@ -4,15 +4,12 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { redis } from '../lib/redis.js';
-import { UserRole } from '../../prisma/generated/prisma/client.js';
 import { languages, type Locale } from '../lib/i18n.js';
 
 const localeValues = Object.keys(languages) as [Locale, ...Locale[]];
 
 const AccessTokenPayloadSchema = z.object({
   userId: z.string(),
-  role: z.nativeEnum(UserRole),
-  customerId: z.string().nullable(),
   locale: z.enum(localeValues),
 });
 
@@ -98,3 +95,10 @@ export async function revokeAllRefreshTokens(userId: string): Promise<void> {
 
 export const REFRESH_COOKIE_NAME = 'refresh_token';
 export const REFRESH_COOKIE_MAX_AGE_MS = REFRESH_TTL_SECONDS * 1000;
+
+/**
+ * Scopes the refresh cookie so the browser attaches it to the auth routes and
+ * nowhere else — every other endpoint authenticates with the access token.
+ * Must match where `authRouter` is mounted in `app.ts`.
+ */
+export const REFRESH_COOKIE_PATH = '/api/v1/auth';

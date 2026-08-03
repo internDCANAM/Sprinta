@@ -16,13 +16,11 @@ export interface DealRequest extends AuthenticatedRequest {
 }
 
 /**
- * Checks that a deal belongs to the logged-in customer. Reads the deal via the
+ * Checks that a deal belongs to the logged-in user. Reads the deal via the
  * :id param and attaches it to req.deal so the route handler doesn't need to
  * run the same query again.
  */
-// 1. Write the logic normally (not exported yet)
 async function dealOwnershipLogic(req: Request, _res: Response, next: NextFunction) {
-  // No need for strict Promise<void> return type here
   if (!req.user) return next(unauthorized(req));
 
   const id = req.params.id;
@@ -31,10 +29,8 @@ async function dealOwnershipLogic(req: Request, _res: Response, next: NextFuncti
   const deal = await prisma.deal.findUnique({ where: { id } });
   if (!deal) return next(notFound(req, req.t.db.dealNotFound));
 
-  if (req.user.role === 'CUSTOMER') {
-    if (!req.user.customerId || deal.customerId !== req.user.customerId) {
-      return next(forbidden(req));
-    }
+  if (deal.ownerId !== req.user.userId) {
+    return next(forbidden(req));
   }
 
   req.deal = deal;

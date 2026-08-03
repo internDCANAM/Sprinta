@@ -15,6 +15,14 @@ export interface AuditEntry {
   req: Request;
 }
 
+interface SecurityEventInput {
+  req: Request;
+  eventType: string;
+  severity: SecurityEventSeverity;
+  message: string;
+  metadata?: Prisma.InputJsonValue;
+}
+
 /**
  * Writes one row to audit_log. Sensitive values are hashed (sha256) so the
  * log never becomes a copy of the original data.
@@ -34,20 +42,52 @@ export async function writeAudit(entry: AuditEntry): Promise<void> {
   });
 }
 
-interface SecurityEventInput {
+export interface AuditFieldChangeInput {
+  tableName: string;
+  recordId: string;
+  changedBy: string;
+  before: Record<string, string | number | boolean | Date | null | undefined>;
+  patch: Record<string, string | number | boolean | Date | null | undefined>;
   req: Request;
-  eventType: string;
-  severity: SecurityEventSeverity;
-  message: string;
-  metadata?: Prisma.InputJsonValue;
+}
+
+/**
+ * Diffs `patch` against `before` and writes one {@link writeAudit} row per
+ * field whose value actually changed.
+ *
+ * @param patch - Proposed field values, e.g. the same object about to be
+ * passed to a Prisma `update`. A field absent (`undefined`) is treated as
+ * "not being updated" and skipped, not as "cleared".
+ */
+function stringifyAuditValue(
+  value: string | number | boolean | Date | null | undefined
+): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+export async function auditChanges({
+  tableName, recordId, changedBy, before, patch, req,
+}: AuditFieldChangeInput): Promise<void> {
+  const changedFields = Object.entries(patch).filter(
+    ([fieldName, value]) => value !== undefined && value !== before[fieldName]
+  );
+
+  await Promise.all(
+    changedFields.map(([fieldName, newValue]) =>
+      writeAudit({
+        tableName, recordId, changedBy, fieldName,
+        oldValue: stringifyAuditValue(before[fieldName]),
+        newValue: stringifyAuditValue(newValue),
+        req,
+      })
+    )
+  );
 }
 
 export async function recordSecurityEvent({
-  req,
-  eventType,
-  severity,
-  message,
-  metadata,
+  req, eventType, severity, message, metadata,
 }: SecurityEventInput): Promise<void> {
   try {
     await prisma.securityEvent.create({
