@@ -6,7 +6,9 @@ import type { AddressInfo } from 'node:net';
 import { createApp } from '../src/app.js';
 import { prisma } from '../src/lib/prisma.js';
 import { redis } from '../src/lib/redis.js';
-import type { LoginResponse } from '../src/dto/user.js';
+import type { LoginResponse, AdminUserRow } from '../src/dto/user.js';
+import type { AdminDealRow } from '../src/dto/deal.js';
+import type { Paginated } from '../src/dto/pagination.js';
 import type { User } from '../prisma/generated/prisma/client.js';
 
 const BCRYPT_COST = 12;
@@ -43,8 +45,9 @@ async function login(email: string, password: string): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const { accessToken } = (await response.json()) as LoginResponse;
-  return accessToken;
+  const body = (await response.json()) as LoginResponse;
+  if (!response.ok) throw new Error(`login failed: ${response.status} ${JSON.stringify(body)}`);
+  return body.accessToken;
 }
 
 let server: Server;
@@ -82,22 +85,30 @@ test('createAdmin works', async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: user.email, password }),
   });
-  expect(response.status).toBe(200);
-
   const login = (await response.json()) as LoginResponse;
-  expect(login.accessToken).toBeTruthy();
-  expect(login.user.email).toBe(user.email);
 
   console.log(`
     [ADMIN CREATED]
     login: ${user.email}
     passw: ${password}
   `);
+
+  expect(response.status).toBe(200);
+  expect(login.accessToken).toBeTruthy();
+  expect(login.user.email).toBe(user.email);
 });
 
 // no token at all must be rejected before anything else runs
 test('GET /admin/users no token', async () => {
   const response = await fetch(`${baseUrl}/admin/users`);
+  const body = await response.text();
+
+  console.log(`
+    [GET /admin/users no token]
+    status: ${response.status}
+    body:   ${body}
+  `);
+
   expect(response.status).toBe(401);
 });
 
@@ -109,21 +120,39 @@ test('GET /admin/users non-admin', async () => {
   const response = await fetch(`${baseUrl}/admin/users`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  const body = await response.text();
+
+  console.log(`
+    [GET /admin/users non-admin]
+    status: ${response.status}
+    user:   ${user.email}
+    body:   ${body}
+  `);
+
   expect(response.status).toBe(403);
 });
 
 // a real admin gets the full user list, including non-admins
 test('GET /admin/users lists all', async () => {
-  const { user: admin, password: adminPassword } = await createAdmin();
+  const [{ user: admin, password: adminPassword }, { user: owner }] = await Promise.all([
+    createAdmin(),
+    createUser(),
+  ]);
   const adminToken = await login(admin.email, adminPassword);
-  const { user: owner } = await createUser();
 
   const response = await fetch(`${baseUrl}/admin/users`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   });
-  expect(response.status).toBe(200);
+  const body = (await response.json()) as Paginated<AdminUserRow>;
 
-  const body = (await response.json()) as { data: Array<{ id: string; isAdmin: boolean; }>; };
+  console.log(`
+    [GET /admin/users lists all]
+    status: ${response.status}
+    owner:  ${owner.email}
+    count:  ${body.data.length}
+  `);
+
+  expect(response.status).toBe(200);
   expect(body.data.some((row) => row.id === owner.id && row.isAdmin === false)).toBe(true);
 });
 
@@ -142,14 +171,24 @@ test('POST /admin/deals non-admin', async () => {
       dealType: 'MISC',
     }),
   });
+  const body = await response.text();
+
+  console.log(`
+    [POST /admin/deals non-admin]
+    status: ${response.status}
+    body:   ${body}
+  `);
+
   expect(response.status).toBe(403);
 });
 
 // assignedToId isn't in the response body — check it straight from the db
 test('POST /admin/deals assigns creator', async () => {
-  const { user: admin, password: adminPassword } = await createAdmin();
+  const [{ user: admin, password: adminPassword }, { user: owner }] = await Promise.all([
+    createAdmin(),
+    createUser(),
+  ]);
   const adminToken = await login(admin.email, adminPassword);
-  const { user: owner } = await createUser();
 
   const externalId = `TEST-${faker.string.uuid()}`;
   const response = await fetch(`${baseUrl}/admin/deals`, {
@@ -162,14 +201,17 @@ test('POST /admin/deals assigns creator', async () => {
       dealType: 'THINNING',
     }),
   });
-  expect(response.status).toBe(201);
+  const created = (await response.json()) as AdminDealRow;
 
-  const created = (await response.json()) as {
-    id: string;
-    externalId: string;
-    status: string;
-    owner: { id: string; name: string; email: string; };
-  };
+  console.log(`
+    [POST /admin/deals assigns creator]
+    status: ${response.status}
+    admin:  ${admin.email}
+    owner:  ${owner.email}
+    body:   ${JSON.stringify(created)}
+  `);
+
+  expect(response.status).toBe(201);
   expect(created.externalId).toBe(externalId);
   expect(created.status).toBe('PLANNED');
   expect(created.owner.id).toBe(owner.id);
@@ -180,9 +222,11 @@ test('POST /admin/deals assigns creator', async () => {
 
 // deal inserted straight via prisma still shows up through the real endpoint
 test('GET /admin/deals lists all', async () => {
-  const { user: admin, password: adminPassword } = await createAdmin();
+  const [{ user: admin, password: adminPassword }, { user: owner }] = await Promise.all([
+    createAdmin(),
+    createUser(),
+  ]);
   const adminToken = await login(admin.email, adminPassword);
-  const { user: owner } = await createUser();
 
   const externalId = `TEST-${faker.string.uuid()}`;
   await prisma.deal.create({
@@ -198,9 +242,16 @@ test('GET /admin/deals lists all', async () => {
   const response = await fetch(`${baseUrl}/admin/deals`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   });
-  expect(response.status).toBe(200);
+  const body = (await response.json()) as Paginated<AdminDealRow>;
 
-  const body = (await response.json()) as { data: Array<{ externalId: string; }>; };
+  console.log(`
+    [GET /admin/deals lists all]
+    status: ${response.status}
+    admin:  ${admin.email}
+    count:  ${body.data.length}
+  `);
+
+  expect(response.status).toBe(200);
   expect(body.data.some((deal) => deal.externalId === externalId)).toBe(true);
 });
 
@@ -217,5 +268,12 @@ test('rate limits logins', async () => {
 
   const responses = await Promise.all(Array.from({ length: 11 }, attempt));
   const limited = responses.filter((r) => r.status === 429);
+
+  console.log(`
+    [rate limits logins]
+    attempts: ${responses.length}
+    limited:  ${limited.length}
+  `);
+
   expect(limited.length).toBeGreaterThan(0);
 });

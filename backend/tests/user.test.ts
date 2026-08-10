@@ -7,6 +7,7 @@ import { createApp } from '../src/app.js';
 import { prisma } from '../src/lib/prisma.js';
 import { redis } from '../src/lib/redis.js';
 import type { RegisterInput, UserProfile } from '../src/dto/user.js';
+import { ErrorCode, type ApiErrorBody } from '../src/dto/error.js';
 
 let server: Server;
 let baseUrl: string;
@@ -53,9 +54,15 @@ test('register creates user', async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  expect(response.status).toBe(201);
-
   const profile = (await response.json()) as UserProfile;
+
+  console.log(`
+    [USER CREATED]
+    login: ${profile.email}
+    passw: ${input.password}
+  `);
+
+  expect(response.status).toBe(201);
   expect(profile.id).toBeDefined();
   expect(profile.email).toBe(input.email.toLowerCase());
   expect(profile.name).toBe(input.name);
@@ -69,12 +76,6 @@ test('register creates user', async () => {
   expect(stored.passwordHash).not.toBe(input.password);
   await expect(bcrypt.compare(input.password, stored.passwordHash)).resolves.toBe(true);
   expect(stored.isActive).toBe(true);
-
-  console.log(`
-    [USER CREATED]
-    login: ${profile.email}
-    passw: ${input.password}
-  `);
 });
 
 // a second registration with an already-used email must not create a row
@@ -92,17 +93,40 @@ test('reject taken email', async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...userInput(), email: input.email }),
   });
+  const body = await retry.text();
+
+  console.log(`
+    [reject taken email]
+    status: ${retry.status}
+    email:  ${input.email}
+    body:   ${body}
+  `);
+
   expect(retry.status).toBe(409);
   expect(await prisma.user.count({ where: { email: input.email.toLowerCase() } })).toBe(1);
 });
 
-// an invalid payload must be rejected before anything is written to the db
+// an invalid payload must be rejected before anything is written to the db,
+// with per-field validation errors — not just a bare 400
 test('reject registration = no db entry', async () => {
   const response = await fetch(`${baseUrl}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'not-an-address', password: 'short', name: '' }),
   });
+  const body = (await response.json()) as ApiErrorBody;
+
+  console.log(`
+    [reject registration = no db entry]
+    status: ${response.status}
+    body:   ${JSON.stringify(body)}
+  `);
+
   expect(response.status).toBe(400);
+  expect(body.code).toBe(ErrorCode.VALIDATION_ERROR);
+  const details = body.details as Record<string, string[]>;
+  expect(details.email).toBeTruthy();
+  expect(details.password).toBeTruthy();
+
   expect(await prisma.user.count({ where: { name: '' } })).toBe(0);
 });
