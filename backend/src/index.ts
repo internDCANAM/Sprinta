@@ -7,9 +7,7 @@ import { redis } from './lib/redis.js';
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
-  logger.info(`Backend listening on port ${env.PORT}`, {
-    env: env.NODE_ENV,
-  });
+  logger.info(`Backend listening on port ${env.PORT}`, { env: env.NODE_ENV });
 });
 
 function shutdown(signal: string): void {

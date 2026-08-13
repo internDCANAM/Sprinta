@@ -12,8 +12,8 @@ export const dealSummarySchema = z.object({
   id: z.string(),
   externalId: z.string(),
   title: z.string(),
-  dealType: z.nativeEnum(DealType),
-  status: z.nativeEnum(DealStatus),
+  dealType: z.enum(DealType),
+  status: z.enum(DealStatus),
   estimatedGrossMinor: minorUnits.nullable(),
   finalGrossMinor: minorUnits.nullable(),
   createdAt: isoDate,
@@ -29,8 +29,8 @@ export const adminDealRowSchema = z.object({
   id: z.string(),
   externalId: z.string(),
   title: z.string(),
-  dealType: z.nativeEnum(DealType),
-  status: z.nativeEnum(DealStatus),
+  dealType: z.enum(DealType),
+  status: z.enum(DealStatus),
   estimatedGrossMinor: minorUnits.nullable(),
   finalGrossMinor: minorUnits.nullable(),
   createdAt: isoDate,
@@ -48,8 +48,8 @@ export const dealDetailSchema = z.object({
   id: z.string(),
   externalId: z.string(),
   title: z.string(),
-  dealType: z.nativeEnum(DealType),
-  status: z.nativeEnum(DealStatus),
+  dealType: z.enum(DealType),
+  status: z.enum(DealStatus),
   estimatedGrossMinor: minorUnits.nullable(),
   finalGrossMinor: minorUnits.nullable(),
   propertyId: z.string().nullable(),
@@ -78,7 +78,7 @@ export const dealDetailSchema = z.object({
 export const dealEventSchema = z.object({
   id: z.string(),
   dealId: z.string(),
-  eventType: z.nativeEnum(DealEventType),
+  eventType: z.enum(DealEventType),
   label: z.string(),
   plannedDate: isoDateOrNull,
   actualDate: isoDateOrNull,
@@ -108,7 +108,7 @@ export const dealCostSchema = z.object({
 
 export const documentSummarySchema = z.object({
   id: z.string(),
-  docType: z.nativeEnum(DocumentType),
+  docType: z.enum(DocumentType),
   filename: z.string(),
   mimeType: z.string(),
   sizeBytes: z.number(),
@@ -129,17 +129,15 @@ export const messageSchema = z.object({
   sender: z.object({ id: z.string(), name: z.string() }),
 });
 
-export const messageInputSchema = z.object({
-  body: z.string().min(1).max(5000),
-});
+export const messageInputSchema = z.object({ body: z.string().min(1).max(5000) });
 
 export const createDealInputSchema = z.object({
   ownerId: z.string(),
   propertyId: z.string().optional(),
   externalId: z.string().min(1).max(200),
   title: z.string().min(1).max(300),
-  dealType: z.nativeEnum(DealType),
-  status: z.nativeEnum(DealStatus).default(DealStatus.PLANNED),
+  dealType: z.enum(DealType),
+  status: z.enum(DealStatus).default(DealStatus.PLANNED),
   estimatedGrossMinor: z.number().int().nonnegative().optional(),
 });
 

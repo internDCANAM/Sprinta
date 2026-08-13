@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js';
 import { loginRateLimiter, registerRateLimiter } from '../middleware/rateLimit.js';
 import { asyncHandler, conflict, unauthorized } from '../utils/http.js';
 import { REFRESH_COOKIE_MAX_AGE_MS, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH, isRefreshTokenValid, revokeRefreshToken, signAccessToken, signRefreshToken, storeRefreshToken, verifyRefreshToken } from '../utils/auth.js';
+import { CSRF_COOKIE_NAME, doubleCsrfProtection, issueCsrfToken } from '../middleware/csrf.middleware.js';
 import { logger } from '../lib/logger.js';
 import { NodeEnv } from '../config/enums.js';
 import { env } from '../config/env.js';
@@ -25,15 +26,17 @@ function refreshCookieOptions() {
 
 /**
  * Issues a refresh token, records it as valid, and hands it to the browser.
+ * Also (re)mints this session's CSRF cookie — see {@link issueCsrfToken}.
  *
- * The token reaches the client as a `httpOnly` cookie and never as part of a
- * response body, so page scripts — including anything injected into one —
- * cannot read it back out.
+ * The refresh token reaches the client as a `httpOnly` cookie and never as
+ * part of a response body, so page scripts — including anything injected
+ * into one — cannot read it back out.
  */
-async function startSession(res: Response, userId: string): Promise<void> {
+async function startSession(req: Request, res: Response, userId: string): Promise<void> {
   const { token, tokenId } = signRefreshToken(userId);
   await storeRefreshToken(userId, tokenId);
   res.cookie(REFRESH_COOKIE_NAME, token, refreshCookieOptions());
+  issueCsrfToken(req, res, token);
 }
 
 async function register(req: Request): Promise<UserProfile> {
@@ -59,7 +62,7 @@ async function login(req: Request, res: Response): Promise<LoginResponse> {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) throw unauthorized(req, req.t.auth.invalidCredentials);
   const locale = resolveLocale(req);
-  await startSession(res, user.id);
+  await startSession(req, res, user.id);
   logger.info(req.t.auth.success, { userId: user.id });
 
   return {
@@ -87,7 +90,7 @@ async function refresh(req: Request, res: Response): Promise<RefreshResponse> {
   const user = await prisma.user.findUnique({ where: { id: payload.userId } });
   if (!user || !user.isActive) throw unauthorized(req, req.t.auth.userInactive);
   await revokeRefreshToken(payload.userId, payload.tokenId);
-  await startSession(res, user.id);
+  await startSession(req, res, user.id);
 
   return {
     accessToken: signAccessToken({
@@ -107,10 +110,11 @@ async function logout(req: Request, res: Response): Promise<void> {
     } catch { } // unverified token has nothing to revoke
   }
   res.clearCookie(REFRESH_COOKIE_NAME, { path: REFRESH_COOKIE_PATH });
+  res.clearCookie(CSRF_COOKIE_NAME, { path: '/' });
 }
 
 export const authRouter = Router();
 authRouter.post('/register', registerRateLimiter, asyncHandler(async (req, res) => res.status(201).json(await register(req))));
 authRouter.post('/login', loginRateLimiter, asyncHandler(async (req, res) => res.json(await login(req, res))));
-authRouter.post('/refresh', asyncHandler(async (req, res) => res.json(await refresh(req, res))));
-authRouter.post('/logout', asyncHandler(async (req, res) => { await logout(req, res); res.status(204).end(); }));
+authRouter.post('/refresh', doubleCsrfProtection, asyncHandler(async (req, res) => res.json(await refresh(req, res))));
+authRouter.post('/logout', doubleCsrfProtection, asyncHandler(async (req, res) => { await logout(req, res); res.status(204).end(); }));

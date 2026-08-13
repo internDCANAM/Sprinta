@@ -18,21 +18,25 @@ import { NodeEnv } from '../config/enums.js';
  * logger.info('User logged in', { userId, role });
  * logger.error('Unexpected failure', { message: err.message });
  */
+// structured JSON — includes timestamp field for log aggregators
+const productionFormat = winston.format.combine(
+  winston.format.timestamp(),
+  winston.format.json()
+);
+
+// colourised one-liner for local terminals
+const developmentFormat = winston.format.combine(
+  winston.format.colorize(),
+  winston.format.timestamp({ format: 'HH:mm:ss' }),
+  winston.format.printf(({ timestamp, level, message, ...meta }) =>
+    `${String(timestamp)} ${String(level)} ${String(message)}${
+      Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : ''
+    }`
+  )
+);
+
 export const logger = winston.createLogger({
   level: env.LOG_LEVEL,
-  format:
-    env.NODE_ENV === NodeEnv.PRODUCTION
-      ? // structured JSON — includes timestamp field for log aggregators
-        winston.format.combine(winston.format.timestamp(), winston.format.json())
-      : // colourised one-liner for local terminals
-        winston.format.combine(
-          winston.format.colorize(),
-          winston.format.timestamp({ format: 'HH:mm:ss' }),
-          winston.format.printf(({ timestamp, level, message, ...meta }) =>
-            `${String(timestamp)} ${String(level)} ${String(message)}${
-              Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : ''
-            }`
-          )
-        ),
+  format: env.NODE_ENV === NodeEnv.PRODUCTION ? productionFormat : developmentFormat,
   transports: [new winston.transports.Console()],
 });

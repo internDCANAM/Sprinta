@@ -1,6 +1,6 @@
-import { Outlet } from "react-router-dom";
-import { AppHeader } from "./AppHeader";
-import { BottomNav } from "./BottomNav";
+import { Outlet } from 'react-router-dom';
+import { AppHeader } from './AppHeader';
+import { BottomNav } from './BottomNav';
 
 export function AppLayout() {
   return (

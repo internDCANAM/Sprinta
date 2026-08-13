@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UserProfile } from '@sprintaiso/api-types';
 import { fetchMe, updateBankAccount, updateProfile } from '../api/endpoints';
@@ -42,13 +42,10 @@ function ProfileForm({ profile }: { profile: UserProfile; }) {
 
   const save = useMutation({
     mutationFn: updateProfile,
-    onSuccess: () => {
-      setSaved(true);
-      void qc.invalidateQueries({ queryKey: ['me'] });
-    },
+    onSuccess: () => { setSaved(true); void qc.invalidateQueries({ queryKey: ['me'] }); },
   });
 
-  function onSubmit(e: FormEvent) {
+  function onSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     save.mutate({
       name: form.name,
@@ -67,11 +64,7 @@ function ProfileForm({ profile }: { profile: UserProfile; }) {
     >
       <h2 className="text-lg">Personuppgifter</h2>
 
-      <Field
-        label="Namn"
-        value={form.name}
-        onChange={(v) => updateField({ name: v })}
-      />
+      <Field label="Namn" value={form.name} onChange={(v) => updateField({ name: v })} />
       <Field
         label="E-post"
         type="email"
@@ -136,7 +129,7 @@ function BankAccountSection({ profile }: { profile: UserProfile; }) {
     },
   });
 
-  function submit(e: FormEvent) {
+  function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!confirmed || !value.trim()) return;
     mutation.mutate({ bankAccount: value.trim() });
@@ -195,20 +188,13 @@ function BankAccountSection({ profile }: { profile: UserProfile; }) {
           {mutation.error && <ErrorMessage error={mutation.error} />}
 
           <div className="flex gap-2">
-            <Button
-              type="submit"
-              disabled={!confirmed || !value.trim() || mutation.isPending}
-            >
+            <Button type="submit" disabled={!confirmed || !value.trim() || mutation.isPending} >
               {mutation.isPending ? 'Sparar...' : 'Bekräfta ändring'}
             </Button>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => {
-                setEditing(false);
-                setValue('');
-                setConfirmed(false);
-              }}
+              onClick={() => { setEditing(false); setValue(''); setConfirmed(false); }}
             >
               Avbryt
             </Button>
@@ -219,13 +205,7 @@ function BankAccountSection({ profile }: { profile: UserProfile; }) {
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  placeholder,
-}: {
+function Field({ label, value, onChange, type = 'text', placeholder }: {
   label: string;
   value: string;
   onChange: (v: string) => void;

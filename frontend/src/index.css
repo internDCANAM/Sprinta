@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --green-900: #1a2e22;
@@ -9,6 +7,18 @@
   --green-200: #b7e4c7;
   --green-50: #f0f7f4;
   --gold: #c9952e;
+}
+
+@theme {
+  --color-forest-900: var(--green-900);
+  --color-forest-700: var(--green-700);
+  --color-forest-500: var(--green-500);
+  --color-forest-200: var(--green-200);
+  --color-forest-50: var(--green-50);
+  --color-gold: var(--gold);
+  --font-display: "Lora", serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --max-width-mobile: 480px;
 }
 
 html,

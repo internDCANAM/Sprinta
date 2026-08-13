@@ -1,7 +1,9 @@
-import { extractErrorMessage } from "../api/client";
+import { extractErrorMessage } from '../api/client';
+import { useAuth } from '../auth/AuthProvider';
 
 export function ErrorMessage({ error }: { error: unknown }) {
-  const msg = extractErrorMessage(error);
+  const { user } = useAuth();
+  const msg = extractErrorMessage(error, user?.locale ?? 'sv');
   return (
     <div
       role="alert"

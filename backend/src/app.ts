@@ -15,6 +15,7 @@ import { configRouter } from './routes/config.js';
 import { adminRouter } from './routes/admin.js';
 import { NodeEnv } from './config/enums.js';
 import { i18n } from './middleware/i18n.middleware.js';
+import { doubleCsrfProtection } from './middleware/csrf.middleware.js';
 import type { Translations } from './lib/i18n.js';
 import { AccessTokenPayload } from './utils/auth.js';
 import { Deal } from '../prisma/generated/prisma/client.js';
@@ -53,6 +54,7 @@ export function createApp(): Express {
   }
   app.use('/api/v1/health', healthRouter);
   app.use('/api/v1/auth', authRouter);
+  app.use(doubleCsrfProtection);
   app.use('/api/v1/me', meRouter);
   app.use('/api/v1/deals', dealsRouter);
   app.use('/api/v1/payments', paymentsRouter);

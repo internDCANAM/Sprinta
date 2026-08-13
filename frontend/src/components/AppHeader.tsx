@@ -1,14 +1,11 @@
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../auth/AuthProvider";
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
 
 export function AppHeader() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  async function handleLogout() {
-    await logout();
-    navigate("/login", { replace: true });
-  }
+  async function handleLogout() { await logout(); await navigate('/login', { replace: true }); }
 
   return (
     <header className="sticky top-0 z-20 border-b border-forest-200 bg-white/90 backdrop-blur">
@@ -17,10 +14,7 @@ export function AppHeader() {
           <span
             aria-hidden
             className="inline-block h-7 w-7 rounded-md bg-forest-700"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--green-700), var(--green-500))",
-            }}
+            style={{ background: 'linear-gradient(135deg, var(--green-700), var(--green-500))' }}
           />
           <span className="font-display text-lg font-semibold text-forest-900">
             Sprintaiso

@@ -37,9 +37,7 @@ function authRateLimiter(config: AuthRateLimit): RateLimitRequestHandler {
         eventType: config.eventType,
         severity: SecurityEventSeverity.HIGH,
         message: config.message,
-        metadata: {
-          control: 'ISO27001_A.8.15_A.8.16',
-        },
+        metadata: { control: 'ISO27001_A.8.15_A.8.16' },
       });
 
       res.status(429).json({

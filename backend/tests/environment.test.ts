@@ -61,9 +61,7 @@ async function waitForStatus(statuses: string[], timeoutMs = 3000): Promise<stri
 async function restoreRedis(): Promise<void> {
   redis.options.retryStrategy = () => undefined;
 
-  if (redis.status !== 'end' && redis.status !== 'wait') {
-    redis.disconnect();
-  }
+  if (redis.status !== 'end' && redis.status !== 'wait') redis.disconnect();
   await waitForStatus(['end', 'wait'], 2000);
 
   redis.options.maxRetriesPerRequest = saved.maxRetriesPerRequest;
@@ -72,9 +70,7 @@ async function restoreRedis(): Promise<void> {
   redis.options.port = saved.port;
   redis.options.connectTimeout = saved.connectTimeout;
 
-  if (redis.status !== 'ready') {
-    await redis.connect();
-  }
+  if (redis.status !== 'ready') await redis.connect();
   await waitForStatus(['ready'], 3000);
 
   console.log(`
@@ -141,8 +137,8 @@ async function loginWithBrokenRedis(maxRetries: number, email: string, password:
     ms:         ${result.ms.toFixed(1)}
     body:       ${result.body}
     redis errors (${errors.length}):${errors.length
-      ? errors.map((e) => `\n      - ${e}`).join('')
-      : ' (none)'}
+  ? errors.map((e) => `\n      - ${e}`).join('')
+  : ' (none)'}
   `);
 
   await restoreRedis();

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm backend prisma:generate
+      - run: pnpm lint
+      - run: pnpm -r typecheck
+      - run: pnpm frontend build
+
+  backend-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sprintaiso
+          POSTGRES_PASSWORD: sprintaiso_dev
+          POSTGRES_DB: sprintaiso_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sprintaiso -d sprintaiso_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      PORT: 4000
+      LOG_LEVEL: error
+      DATABASE_URL: postgresql://sprintaiso:sprintaiso_dev@localhost:5432/sprintaiso_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      REDIS_MAX_RETRIES: 3
+      JWT_ACCESS_SECRET: ci-test-access-secret-not-for-prod-use-32bytes
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-not-for-prod-use-32bytes
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
+      CSRF_SECRET: ci-test-csrf-secret-not-for-prod-use-32bytes
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: ./storage
+      CORS_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm backend prisma:generate
+      - run: pnpm backend prisma:push
+      - run: pnpm backend test

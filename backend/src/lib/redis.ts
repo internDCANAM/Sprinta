@@ -18,10 +18,5 @@ export const redis = new Redis(env.REDIS_URL, {
   lazyConnect: false,
 });
 
-redis.on('error', (err: Error) => {
-  logger.error('Redis error', { message: err.message });
-});
-
-redis.on('connect', () => {
-  logger.info('Redis connected');
-});
+redis.on('error', (err: Error) => { logger.error('Redis error', { message: err.message }); });
+redis.on('connect', () => { logger.info('Redis connected'); });

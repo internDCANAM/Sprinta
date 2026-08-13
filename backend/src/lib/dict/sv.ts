@@ -9,9 +9,7 @@ export const sv = {
     userInactive: 'Kontot är inaktiverat.',
     success: 'Inloggning lyckades.',
   },
-  format: {
-    regex: 'Bankkontonumret får endast innehålla siffror, mellanslag och bindestreck.',
-  },
+  format: { regex: 'Bankkontonumret får endast innehålla siffror, mellanslag och bindestreck.' },
   http: {
     badRequest: 'Ogiltig förfrågan.',
     unauthorized: 'Autentisering krävs.',
@@ -21,12 +19,6 @@ export const sv = {
     rateLimited: 'För många försök, försök igen senare.',
     internalError: 'Något gick fel. Försök igen.',
   },
-  db: {
-    dealNotFound: 'Deal hittades inte.',
-    customerProfileMissing: 'Kundprofil saknas.',
-  },
-  input: {
-    validationFailed: 'Valideringsfel.',
-    emailTaken: 'E-postadressen används redan.',
-  },
+  db: { dealNotFound: 'Deal hittades inte.', customerProfileMissing: 'Kundprofil saknas.' },
+  input: { validationFailed: 'Valideringsfel.', emailTaken: 'E-postadressen används redan.' },
 } as const;

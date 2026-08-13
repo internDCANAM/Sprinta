@@ -16,8 +16,9 @@
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "@sprintaiso/api-types": ["../backend/src/dto/index.ts"]
+      "@sprintaiso/api-types": ["../backend/src/dto/index.ts"],
+      "@sprintaiso/dict": ["../backend/src/lib/dict/index.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "tailwind.config.ts"]
+  "include": ["src", "vite.config.ts"]
 }

@@ -5,7 +5,7 @@ import { isoDate, isoDateOrNull } from './primitives.js';
 
 const profileFields = {
   name:          z.string().min(1).max(200),
-  email:         z.string().email().toLowerCase(),
+  email:         z.email().toLowerCase(),
   phone:         z.string().max(40).optional(),
   addressStreet: z.string().max(200).optional(),
   addressPostal: z.string().max(20).optional(),
@@ -22,21 +22,14 @@ export const loginInputSchema = z.object({
   password: z.string().min(1),
 });
 
-export const deactivateAccountSchema = z.object({
-  password: z.string().min(1),
-});
+export const deactivateAccountSchema = z.object({ password: z.string().min(1) });
 
 function bankAccountField(t: Translations) {
   return z.string().min(4).max(40).regex(/^[0-9 \-]+$/, t.format.regex);
 }
 
 export function profilePatchSchema(t: Translations) {
-  return z
-    .object({
-      ...profileFields,
-      bankAccount: bankAccountField(t),
-    })
-    .partial()
+  return z .object({ ...profileFields, bankAccount: bankAccountField(t) }) .partial()
     .refine((patch) => Object.keys(patch).length > 0, { message: t.input.validationFailed });
 }
 

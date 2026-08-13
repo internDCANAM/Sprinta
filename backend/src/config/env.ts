@@ -3,23 +3,24 @@ import { z } from 'zod';
 import { LogLevel, NodeEnv, StorageDriver } from './enums.js';
 
 // Zod schema declaring every required env var and its expected shape.
-// z.nativeEnum validates the raw string against the enum's values.
+// z.enum validates the raw string against the enum's values.
 // z.coerce.number() converts the string from process.env to a number before validating.
 const EnvSchema = z.object({
-  NODE_ENV:           z.nativeEnum(NodeEnv),
+  NODE_ENV:           z.enum(NodeEnv),
   PORT:               z.coerce.number().int().positive(),
-  LOG_LEVEL:          z.nativeEnum(LogLevel),
-  DATABASE_URL:       z.string().url(),
-  REDIS_URL:          z.string().url(),
+  LOG_LEVEL:          z.enum(LogLevel),
+  DATABASE_URL:       z.url(),
+  REDIS_URL:          z.url(),
   REDIS_MAX_RETRIES:  z.coerce.number().int().nonnegative(),
   JWT_ACCESS_SECRET:  z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL:     z.string(),
   JWT_REFRESH_TTL:    z.string(),
+  CSRF_SECRET:        z.string().min(32),
   ENCRYPTION_KEY:     z.string().regex(/^[0-9a-f]{64}$/i),
-  STORAGE_DRIVER:     z.nativeEnum(StorageDriver),
+  STORAGE_DRIVER:     z.enum(StorageDriver),
   STORAGE_LOCAL_DIR:  z.string(),
-  CORS_ORIGIN:        z.string().url(),
+  CORS_ORIGIN:        z.url(),
 });
 
 // process.exit(1) here means the HTTP server
@@ -27,7 +28,9 @@ const EnvSchema = z.object({
 function loadEnv() {
   const parsed = EnvSchema.safeParse(process.env);
   if (!parsed.success) {
-    process.stderr.write(`Invalid .env — aborting: ${JSON.stringify(parsed.error.flatten().fieldErrors)}\n`);
+    process.stderr.write(
+      `Invalid .env — aborting: ${JSON.stringify(z.flattenError(parsed.error).fieldErrors)}`
+    );
     process.exit(1);
   }
   return parsed.data;

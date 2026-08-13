@@ -1,4 +1,4 @@
-export function LoadingSpinner({ label = "Laddar..." }: { label?: string }) {
+export function LoadingSpinner({ label = 'Laddar...' }: { label?: string }) {
   return (
     <div
       role="status"

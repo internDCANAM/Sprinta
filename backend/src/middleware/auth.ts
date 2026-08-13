@@ -7,9 +7,7 @@ import { prisma } from '../lib/prisma.js';
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const header = req.get('authorization');
-  if (!header || !header.toLowerCase().startsWith('bearer ')) {
-    return next(unauthorized(req));
-  }
+  if (!header || !header.toLowerCase().startsWith('bearer ')) return next(unauthorized(req));
   const token = header.slice(7).trim();
   try {
     req.user = verifyAccessToken(token);

@@ -33,10 +33,7 @@ export interface AuthenticatedRequest extends Request {
   user: AccessTokenPayload;
 }
 
-const RefreshTokenPayloadSchema = z.object({
-  userId: z.string(),
-  tokenId: z.string(),
-});
+const RefreshTokenPayloadSchema = z.object({ userId: z.string(), tokenId: z.string() });
 
 export type RefreshTokenPayload = z.infer<typeof RefreshTokenPayloadSchema>;
 
@@ -52,14 +49,9 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   return AccessTokenPayloadSchema.parse(decoded);
 }
 
-export function signRefreshToken(userId: string): {
-  token: string;
-  tokenId: string;
-} {
+export function signRefreshToken(userId: string): { token: string; tokenId: string; } {
   const tokenId = randomBytes(16).toString('hex');
-  const options: SignOptions = {
-    expiresIn: env.JWT_REFRESH_TTL as SignOptions['expiresIn'],
-  };
+  const options: SignOptions = { expiresIn: env.JWT_REFRESH_TTL as SignOptions['expiresIn'] };
   const token = jwt.sign({ userId, tokenId }, env.JWT_REFRESH_SECRET, options);
   return { token, tokenId };
 }
@@ -88,9 +80,7 @@ export async function revokeRefreshToken(userId: string, tokenId: string): Promi
 export async function revokeAllRefreshTokens(userId: string): Promise<void> {
   const stream = redis.scanStream({ match: `refresh:${userId}:*`, count: 100 });
   for await (const keys of stream as AsyncIterable<string[]>) {
-    if (keys.length) {
-      await redis.del(...keys);
-    }
+    if (keys.length) await redis.del(...keys);
   }
 }
 

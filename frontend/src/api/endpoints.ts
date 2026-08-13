@@ -1,4 +1,5 @@
 import { api } from './client';
+import { csrfHeaders } from './csrf';
 import type { AdminDealRow, AdminUserRow, CreateDealInput, DealCost, DealDetail, DealEvent, DealSummary, DocumentSummary, DomainConfig, LoginResponse, Message, Paginated, Payment, TimberPost, UpdateBankAccountInput, UpdateProfileInput, UserProfile } from '@sprintaiso/api-types';
 
 // --- auth ---
@@ -8,14 +9,11 @@ export async function loginRequest(email: string, password: string) {
 }
 
 export async function logoutRequest() {
-  await api.post('/auth/logout');
+  await api.post('/auth/logout', {}, { headers: csrfHeaders() });
 }
 
 // --- me ---
-export async function fetchMe() {
-  const { data } = await api.get<UserProfile>('/me');
-  return data;
-}
+export async function fetchMe() { const { data } = await api.get<UserProfile>('/me'); return data; }
 
 export async function updateProfile(input: UpdateProfileInput) {
   const { data } = await api.patch<UserProfile>('/me', input);

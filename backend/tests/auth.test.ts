@@ -9,6 +9,7 @@ import { env } from '../src/config/env.js';
 import type { LoginResponse, RefreshResponse, UserProfile } from '../src/dto/user.js';
 import { prisma } from '../src/lib/prisma.js';
 import { redis } from '../src/lib/redis.js';
+import { CSRF_COOKIE_NAME } from '../src/middleware/csrf.middleware.js';
 import type { User } from '../prisma/generated/prisma/client.js';
 
 const BCRYPT_COST = 12;
@@ -36,22 +37,37 @@ async function login(email: string, password: string): Promise<string> {
   return body.accessToken;
 }
 
-// logs in on its own fake IP (isolated from the shared login rate-limit
-// counter) and returns the refresh cookie's name=value pair
+// name=value pair suitable for a request's Cookie header
+function cookieNameValue(setCookieHeader: string): string { return setCookieHeader.split(';')[0]!; }
+
+// decoded value only, suitable for the x-csrf-token header — csrf-csrf
+// compares against the cookie-parser-decoded value, not the raw Set-Cookie text
+function cookieValue(setCookieHeader: string): string {
+  const nameValue = cookieNameValue(setCookieHeader);
+  return decodeURIComponent(nameValue.slice(nameValue.indexOf('=') + 1));
+}
+
+// login on its own fake IP isolated from shared login rate-limit counter.
+// returns the refresh + CSRF cookies login sets + decoded CSRF token to send
+// back as the x-csrf-token header
 async function loginWithCookie(email: string, password: string):
-  Promise<{ accessToken: string; cookie: string; }> {
+  Promise<{ accessToken: string; cookie: string; csrfCookie: string; csrfToken: string; }> {
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Forwarded-For': faker.internet.ipv4(),
-    },
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': faker.internet.ipv4() },
     body: JSON.stringify({ email, password }),
   });
   const body = (await response.json()) as LoginResponse;
   if (!response.ok) throw new Error(`login failed: ${response.status} ${JSON.stringify(body)}`);
-  const [setCookie] = response.headers.getSetCookie();
-  return { accessToken: body.accessToken, cookie: setCookie!.split(';')[0]! };
+  const setCookies = response.headers.getSetCookie();
+  const refreshSetCookie = setCookies.find((c) => c.startsWith('refresh_token='))!;
+  const csrfSetCookie = setCookies.find((c) => c.startsWith(`${CSRF_COOKIE_NAME}=`))!;
+  return {
+    accessToken: body.accessToken,
+    cookie: cookieNameValue(refreshSetCookie),
+    csrfCookie: cookieNameValue(csrfSetCookie),
+    csrfToken: cookieValue(csrfSetCookie),
+  };
 }
 
 let server: Server;
@@ -80,9 +96,7 @@ test('GET /me valid token', async () => {
   const { user, password } = await createUser();
   const token = await login(user.email, password);
 
-  const response = await fetch(`${baseUrl}/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await fetch(`${baseUrl}/me`, { headers: { Authorization: `Bearer ${token}` } });
   const body = (await response.json()) as UserProfile;
 
   console.log(`
@@ -187,10 +201,7 @@ test('POST /auth/login wrong password', async () => {
   const { user } = await createUser();
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Forwarded-For': faker.internet.ipv4(),
-    },
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': faker.internet.ipv4() },
     body: JSON.stringify({ email: user.email, password: 'not-the-real-password' }),
   });
   const body = await response.text();
@@ -218,10 +229,7 @@ test('POST /auth/login inactive user', async () => {
   });
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Forwarded-For': faker.internet.ipv4(),
-    },
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': faker.internet.ipv4() },
     body: JSON.stringify({ email: user.email, password }),
   });
   const body = await response.text();
@@ -319,7 +327,8 @@ test('POST /auth/login locale changes error message', async () => {
   expect(enBody.error).toBe('Invalid email or password.');
 });
 
-// no refresh cookie at all must be rejected before anything else runs
+// no cookies at all — doubleCsrfProtection rejects before the handler,
+// which owns the (now unreachable in this case) missing-refresh-cookie check
 test('POST /auth/refresh no cookie', async () => {
   const response = await fetch(`${baseUrl}/auth/refresh`, { method: 'POST' });
   const body = await response.text();
@@ -330,10 +339,11 @@ test('POST /auth/refresh no cookie', async () => {
     body:   ${body}
   `);
 
-  expect(response.status).toBe(401);
+  expect(response.status).toBe(403);
 });
 
-// garbage cookie value fails verifyRefreshToken, not a missing-cookie check
+// a garbage refresh_token is also the CSRF identifier doubleCsrfProtection
+// binds to. tampering with it invalidates the CSRF check
 test('POST /auth/refresh invalid token', async () => {
   const response = await fetch(`${baseUrl}/auth/refresh`, {
     method: 'POST',
@@ -347,25 +357,71 @@ test('POST /auth/refresh invalid token', async () => {
     body:   ${body}
   `);
 
-  expect(response.status).toBe(401);
+  expect(response.status).toBe(403);
+});
+
+// refresh cookie without CSRF pair
+test('POST /auth/refresh valid cookie no csrf', async () => {
+  const { user, password } = await createUser();
+  const { cookie, csrfCookie, csrfToken } = await loginWithCookie(user.email, password);
+
+  const forged = await fetch(`${baseUrl}/auth/refresh`, {
+    method: 'POST',
+    headers: { Cookie: cookie },
+  });
+  const forgedBody = await forged.text();
+
+  const ok = await fetch(`${baseUrl}/auth/refresh`, {
+    method: 'POST',
+    headers: { Cookie: `${cookie}; ${csrfCookie}`, 'x-csrf-token': csrfToken },
+  });
+  const okBody = (await ok.json()) as RefreshResponse;
+
+  console.log(`
+    [POST /auth/refresh valid cookie no csrf]
+    forged: ${forged.status} ${forgedBody}
+    ok:     ${ok.status}
+  `);
+
+  expect(forged.status).toBe(403);
+  expect(ok.status).toBe(200);
+  expect(okBody.accessToken).toBeTruthy();
+});
+
+// arrangement a cross-site attacker can produces — the browser
+// attaches both cookies on its own, but foreign JS cannot set a request header.
+// the token has to be rejected as a missing header, not just as a missing cookie
+test('POST /auth/refresh both cookies no csrf header', async () => {
+  const { user, password } = await createUser();
+  const { cookie, csrfCookie } = await loginWithCookie(user.email, password);
+
+  const forged = await fetch(`${baseUrl}/auth/refresh`, {
+    method: 'POST',
+    headers: { Cookie: `${cookie}; ${csrfCookie}` },
+  });
+  const forgedBody = await forged.text();
+
+  console.log(`
+    [POST /auth/refresh both cookies no csrf header]
+    status: ${forged.status}
+    body:   ${forgedBody}
+  `);
+
+  expect(forged.status).toBe(403);
 });
 
 // refreshing rotates the cookie and revokes the one that was spent.
 // reusing the original after a successful refresh must fail
 test('POST /auth/refresh rotates and revokes the old token', async () => {
   const { user, password } = await createUser();
-  const { cookie: originalCookie } = await loginWithCookie(user.email, password);
+  const { cookie: originalCookie, csrfCookie, csrfToken } =
+    await loginWithCookie(user.email, password);
+  const headers = { Cookie: `${originalCookie}; ${csrfCookie}`, 'x-csrf-token': csrfToken };
 
-  const first = await fetch(`${baseUrl}/auth/refresh`, {
-    method: 'POST',
-    headers: { Cookie: originalCookie },
-  });
+  const first = await fetch(`${baseUrl}/auth/refresh`, { method: 'POST', headers });
   const firstBody = (await first.json()) as RefreshResponse;
 
-  const reused = await fetch(`${baseUrl}/auth/refresh`, {
-    method: 'POST',
-    headers: { Cookie: originalCookie },
-  });
+  const reused = await fetch(`${baseUrl}/auth/refresh`, { method: 'POST', headers });
   const reusedBody = await reused.text();
 
   console.log(`
@@ -382,12 +438,12 @@ test('POST /auth/refresh rotates and revokes the old token', async () => {
 // a user deactivated after logging in must be rejected on the next refresh
 test('POST /auth/refresh inactive user', async () => {
   const { user, password } = await createUser();
-  const { cookie } = await loginWithCookie(user.email, password);
+  const { cookie, csrfCookie, csrfToken } = await loginWithCookie(user.email, password);
   await prisma.user.update({ where: { id: user.id }, data: { isActive: false } });
 
   const response = await fetch(`${baseUrl}/auth/refresh`, {
     method: 'POST',
-    headers: { Cookie: cookie },
+    headers: { Cookie: `${cookie}; ${csrfCookie}`, 'x-csrf-token': csrfToken },
   });
   const body = await response.text();
 
@@ -399,4 +455,53 @@ test('POST /auth/refresh inactive user', async () => {
   `);
 
   expect(response.status).toBe(401);
+});
+
+// logout is the other doubleCsrfProtection route, so it carries the same
+// forced-request risk. a rejected logout must also leave the session intact —
+// silently dropping the token would make this a working denial-of-session
+test('POST /auth/logout both cookies no csrf header', async () => {
+  const { user, password } = await createUser();
+  const { cookie, csrfCookie, csrfToken } = await loginWithCookie(user.email, password);
+
+  const forged = await fetch(`${baseUrl}/auth/logout`, {
+    method: 'POST',
+    headers: { Cookie: `${cookie}; ${csrfCookie}` },
+  });
+  const forgedBody = await forged.text();
+
+  const survived = await fetch(`${baseUrl}/auth/refresh`, {
+    method: 'POST',
+    headers: { Cookie: `${cookie}; ${csrfCookie}`, 'x-csrf-token': csrfToken },
+  });
+
+  console.log(`
+    [POST /auth/logout both cookies no csrf header]
+    forged:   ${forged.status} ${forgedBody}
+    survived: ${survived.status}
+  `);
+
+  expect(forged.status).toBe(403);
+  expect(survived.status).toBe(200);
+});
+
+// logout carrying the header revokes the refresh token it was issued with, so
+// spent cookie can't be replayed
+test('POST /auth/logout revokes the refresh token', async () => {
+  const { user, password } = await createUser();
+  const { cookie, csrfCookie, csrfToken } = await loginWithCookie(user.email, password);
+  const headers = { Cookie: `${cookie}; ${csrfCookie}`, 'x-csrf-token': csrfToken };
+
+  const response = await fetch(`${baseUrl}/auth/logout`, { method: 'POST', headers });
+  const reused = await fetch(`${baseUrl}/auth/refresh`, { method: 'POST', headers });
+  const reusedBody = await reused.text();
+
+  console.log(`
+    [POST /auth/logout revokes the refresh token]
+    status: ${response.status}
+    reused: ${reused.status} ${reusedBody}
+  `);
+
+  expect(response.status).toBe(204);
+  expect(reused.status).toBe(401);
 });

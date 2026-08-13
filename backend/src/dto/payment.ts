@@ -12,7 +12,7 @@ export const paymentSchema = z.object({
   dealId: z.string(),
   amountMinor: minorUnits,
   paymentDate: isoDate,
-  status: z.nativeEnum(PaymentStatus),
+  status: z.enum(PaymentStatus),
   reference: z.string().nullable(),
   bankAccountMasked: z.string(),
   externalPaymentId: z.string().nullable(),

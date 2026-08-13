@@ -17,9 +17,7 @@ function createBoomApp(): Express {
   const app = express();
   app.use(cookieParser());
   app.use(i18n);
-  app.get('/api/v1/boom', (_req, _res, next) => {
-    next(new Error(SECRET_ERROR));
-  });
+  app.get('/api/v1/boom', (_req, _res, next) => { next(new Error(SECRET_ERROR)); });
   app.use(errorHandler);
   return app;
 }
@@ -72,9 +70,7 @@ test('GET /health helmet headers', async () => {
 
 // cors reflects the configured origin when the request sends it
 test('GET /health cors origin', async () => {
-  const response = await fetch(`${baseUrl}/health`, {
-    headers: { Origin: env.CORS_ORIGIN },
-  });
+  const response = await fetch(`${baseUrl}/health`, { headers: { Origin: env.CORS_ORIGIN } });
   const allowOrigin = response.headers.get('access-control-allow-origin');
   const allowCreds = response.headers.get('access-control-allow-credentials');
   const body = await response.text();
@@ -97,10 +93,7 @@ test('GET /health cors origin', async () => {
 test('OPTIONS /health cors preflight', async () => {
   const response = await fetch(`${baseUrl}/health`, {
     method: 'OPTIONS',
-    headers: {
-      Origin: env.CORS_ORIGIN,
-      'Access-Control-Request-Method': 'GET',
-    },
+    headers: { Origin: env.CORS_ORIGIN, 'Access-Control-Request-Method': 'GET' },
   });
   const allowOrigin = response.headers.get('access-control-allow-origin');
   const allowCreds = response.headers.get('access-control-allow-credentials');

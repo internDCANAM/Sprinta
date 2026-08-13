@@ -13,11 +13,7 @@ export function ProtectedRoute({ children, adminOnly = false }: Props) {
   const location = useLocation();
 
   if (loading) return <LoadingSpinner />;
-  if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-  if (adminOnly && !user.isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (adminOnly && !user.isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }

@@ -9,9 +9,7 @@ export const en = {
     userInactive: 'User account is inactive.',
     success: 'Login successful.',
   },
-  format: {
-    regex: 'Bank account number can only contain digits, spaces, and hyphens.',
-  },
+  format: { regex: 'Bank account number can only contain digits, spaces, and hyphens.' },
   http: {
     badRequest: 'Invalid request.',
     unauthorized: 'Authentication required.',
@@ -21,10 +19,7 @@ export const en = {
     rateLimited: 'Too many attempts, please try again later.',
     internalError: 'Something went wrong. Please try again.',
   },
-  db: {
-    dealNotFound: 'Deal not found.',
-    customerProfileMissing: 'Customer profile not found.',
-  },
+  db: { dealNotFound: 'Deal not found.', customerProfileMissing: 'Customer profile not found.' },
   input: {
     validationFailed: 'Validation failed.',
     emailTaken: 'This email address is already in use.',

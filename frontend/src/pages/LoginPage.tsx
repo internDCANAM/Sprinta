@@ -1,13 +1,18 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../components/Button';
 import { extractErrorMessage } from '../api/client';
 import { useToast } from '../components/ToastProvider';
 
+function internalPath(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value.startsWith('/') && !value.startsWith('//') ? value : null;
+}
+
 export function LoginPage() {
   const { showToast } = useToast();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,18 +21,17 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
     setSubmitting(true);
     try {
       await login(email, password);
       showToast('Login successful', 'success');
-      const from = (location.state as { from?: string } | null)?.from;
-      navigate(from ?? '/deals', { replace: true });
+      const from = internalPath((location.state as { from?: unknown } | null)?.from);
+      await navigate(from ?? '/deals', { replace: true });
     } catch (e) {
-      // setErr(extractErrorMessage(e));
-      const message = extractErrorMessage(e);
+      const message = extractErrorMessage(e, user?.locale ?? 'sv');
       setErr(message);
       showToast(message, 'error');
     } finally {
@@ -41,10 +45,7 @@ export function LoginPage() {
         <div
           aria-hidden
           className="mx-auto mb-3 h-14 w-14 rounded-2xl"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--green-700), var(--green-500))',
-          }}
+          style={{ background: 'linear-gradient(135deg, var(--green-700), var(--green-500))' }}
         />
         <h1 className="font-display text-2xl text-forest-900">Sprintaiso</h1>
         <p className="mt-1 text-sm text-forest-900/70">

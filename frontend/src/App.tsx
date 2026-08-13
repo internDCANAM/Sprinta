@@ -47,9 +47,7 @@ export default function App() {
 function PublicLogin() {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) {
-    return <Navigate to="/deals" replace />;
-  }
+  if (user) return <Navigate to="/deals" replace />;
   return <LoginPage />;
 }
 

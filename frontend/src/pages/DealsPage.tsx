@@ -41,9 +41,7 @@ export function DealsPage() {
     <div className="space-y-6">
       <section
         className="rounded-xl p-5 text-white shadow-sm"
-        style={{
-          background: 'linear-gradient(135deg, var(--green-700), var(--green-500))',
-        }}
+        style={{ background: 'linear-gradient(135deg, var(--green-700), var(--green-500))' }}
       >
         <p className="text-sm opacity-90">Preliminär ersättning</p>
         <p className="font-display text-3xl">{formatMoney(grouped.totalEstimated)}</p>
@@ -69,7 +67,7 @@ export function DealsPage() {
           <ul className="space-y-3">
             {grouped.ongoing.map((d) => (
               <li key={d.id}>
-                <DealCard deal={d} onClick={() => navigate(`/deals/${d.id}`)} />
+                <DealCard deal={d} onClick={() => void navigate(`/deals/${d.id}`)} />
               </li>
             ))}
           </ul>
@@ -92,7 +90,7 @@ export function DealsPage() {
           <ul className="space-y-3">
             {grouped.finished.map((d) => (
               <li key={d.id}>
-                <DealCard deal={d} onClick={() => navigate(`/deals/${d.id}`)} />
+                <DealCard deal={d} onClick={() => void navigate(`/deals/${d.id}`)} />
               </li>
             ))}
           </ul>

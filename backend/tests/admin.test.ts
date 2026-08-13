@@ -6,6 +6,8 @@ import type { AddressInfo } from 'node:net';
 import { createApp } from '../src/app.js';
 import { prisma } from '../src/lib/prisma.js';
 import { redis } from '../src/lib/redis.js';
+import { CSRF_COOKIE_NAME } from '../src/middleware/csrf.middleware.js';
+import { REFRESH_COOKIE_NAME } from '../src/utils/auth.js';
 import type { LoginResponse, AdminUserRow } from '../src/dto/user.js';
 import type { AdminDealRow } from '../src/dto/deal.js';
 import type { Paginated } from '../src/dto/pagination.js';
@@ -38,8 +40,11 @@ async function createUser(): Promise<{ user: User; password: string; }> {
   return { user, password };
 }
 
-// logs in via the real endpoint and returns the access token
-async function login(email: string, password: string): Promise<string> {
+type Credentials = { accessToken: string; cookies: string; csrfToken: string; };
+
+// logs in via the real endpoint and returns everything a request needs — the
+// bearer token plus the CSRF cookie/header pair every mutating route expects
+async function login(email: string, password: string): Promise<Credentials> {
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,7 +52,26 @@ async function login(email: string, password: string): Promise<string> {
   });
   const body = (await response.json()) as LoginResponse;
   if (!response.ok) throw new Error(`login failed: ${response.status} ${JSON.stringify(body)}`);
-  return body.accessToken;
+  const setCookies = response.headers.getSetCookie();
+  const nameValue = (prefix: string) =>
+    setCookies.find((c) => c.startsWith(`${prefix}=`))!.split(';')[0]!;
+  const csrf = nameValue(CSRF_COOKIE_NAME);
+  return {
+    accessToken: body.accessToken,
+    cookies: `${nameValue(REFRESH_COOKIE_NAME)}; ${csrf}`,
+    csrfToken: decodeURIComponent(csrf.slice(csrf.indexOf('=') + 1)),
+  };
+}
+
+// full header set for a mutating request — CSRF is enforced app-wide, so a
+// bearer token alone is not enough on anything but a read
+function authHeaders(creds: Credentials): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${creds.accessToken}`,
+    Cookie: creds.cookies,
+    'x-csrf-token': creds.csrfToken,
+  };
 }
 
 let server: Server;
@@ -115,10 +139,10 @@ test('GET /admin/users no token', async () => {
 // adminMiddleware gate — a valid token from a non-admin still isn't enough
 test('GET /admin/users non-admin', async () => {
   const { user, password } = await createUser();
-  const token = await login(user.email, password);
+  const { accessToken } = await login(user.email, password);
 
   const response = await fetch(`${baseUrl}/admin/users`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const body = await response.text();
 
@@ -138,10 +162,10 @@ test('GET /admin/users lists all', async () => {
     createAdmin(),
     createUser(),
   ]);
-  const adminToken = await login(admin.email, adminPassword);
+  const { accessToken } = await login(admin.email, adminPassword);
 
   const response = await fetch(`${baseUrl}/admin/users`, {
-    headers: { Authorization: `Bearer ${adminToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const body = (await response.json()) as Paginated<AdminUserRow>;
 
@@ -159,11 +183,11 @@ test('GET /admin/users lists all', async () => {
 // same gate as the GET routes, checked on the write path too
 test('POST /admin/deals non-admin', async () => {
   const { user, password } = await createUser();
-  const token = await login(user.email, password);
+  const creds = await login(user.email, password);
 
   const response = await fetch(`${baseUrl}/admin/deals`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: authHeaders(creds),
     body: JSON.stringify({
       ownerId: user.id,
       externalId: `TEST-${faker.string.uuid()}`,
@@ -188,12 +212,12 @@ test('POST /admin/deals assigns creator', async () => {
     createAdmin(),
     createUser(),
   ]);
-  const adminToken = await login(admin.email, adminPassword);
+  const creds = await login(admin.email, adminPassword);
 
   const externalId = `TEST-${faker.string.uuid()}`;
   const response = await fetch(`${baseUrl}/admin/deals`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+    headers: authHeaders(creds),
     body: JSON.stringify({
       ownerId: owner.id,
       externalId,
@@ -220,13 +244,39 @@ test('POST /admin/deals assigns creator', async () => {
   expect(stored.assignedToId).toBe(admin.id);
 });
 
+// deal without csrf token is not created
+test('POST /admin/deals without csrf token', async () => {
+  const [{ user: admin, password: adminPassword }, { user: owner }] = await Promise.all([
+    createAdmin(),
+    createUser(),
+  ]);
+  const creds = await login(admin.email, adminPassword);
+
+  const externalId = `TEST-${faker.string.uuid()}`;
+  const forged = await fetch(`${baseUrl}/admin/deals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${creds.accessToken}` },
+    body: JSON.stringify({ ownerId: owner.id, externalId, title: 'Forged', dealType: 'MISC' }),
+  });
+  const forgedBody = await forged.text();
+
+  console.log(`
+    [POST /admin/deals without csrf token]
+    status: ${forged.status}
+    body:   ${forgedBody}
+  `);
+
+  expect(forged.status).toBe(403);
+  expect(await prisma.deal.count({ where: { externalId } })).toBe(0);
+});
+
 // deal inserted straight via prisma still shows up through the real endpoint
 test('GET /admin/deals lists all', async () => {
   const [{ user: admin, password: adminPassword }, { user: owner }] = await Promise.all([
     createAdmin(),
     createUser(),
   ]);
-  const adminToken = await login(admin.email, adminPassword);
+  const { accessToken } = await login(admin.email, adminPassword);
 
   const externalId = `TEST-${faker.string.uuid()}`;
   await prisma.deal.create({
@@ -240,7 +290,7 @@ test('GET /admin/deals lists all', async () => {
   });
 
   const response = await fetch(`${baseUrl}/admin/deals`, {
-    headers: { Authorization: `Bearer ${adminToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   const body = (await response.json()) as Paginated<AdminDealRow>;
 

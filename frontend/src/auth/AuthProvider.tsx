@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import axios from 'axios';
-import type { AuthUser, RefreshResponse } from '@sprintaiso/api-types';
-import { getAccessToken, setAccessToken } from './tokenStore';
-import { loginRequest, logoutRequest } from '../api/endpoints';
+import type { AccessTokenPayload, AuthUser } from '@sprintaiso/api-types';
+import { setAccessToken } from './tokenStore';
+import { fetchMe, loginRequest, logoutRequest } from '../api/endpoints';
+import { refreshToken } from '../api/client';
 
+// shape handed back by useAuth()
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
@@ -11,47 +12,50 @@ interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
+// null default (never a placeholder AuthContextValue) is what lets useAuth()
+// detect a call outside <AuthProvider> and throw instead of handing back
+// something that merely looks valid.
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Wraps the app and exposes the current session via {@link useAuth}. Mounted
+ * once, above every route including `/login` in `App.tsx`, so it owns the
+ * access token lifecycle: silent refresh on load, {@link loginRequest}
+ * on sign-in, {@link logoutRequest} on sign-out.
+ */
 export function AuthProvider({ children }: { children: ReactNode; }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On first render: try to exchange the refresh cookie for an access token
-  // so the user stays logged in across a reload.
+  /**
+   * On first render, silently exchanges the httpOnly refresh cookie for an
+   * access token so a page reload doesn't bounce a logged-in user to
+   * `/login`. {@link refreshToken}'s response only carries the token, not a
+   * user — {@link decodeJwtPayload} reads `locale` off it, but `email`/`name`
+   * aren't in the JWT, so those come from a follow-up {@link fetchMe} call.
+   * `cancelled` guards the `setUser`/`setLoading` calls against firing after
+   * this component has already unmounted.
+   */
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      try {
-        const res = await axios.post<RefreshResponse>(
-          '/api/v1/auth/refresh',
-          {},
-          { withCredentials: true }
-        );
-        if (cancelled) return;
-        setAccessToken(res.data.accessToken);
-        // The access token carries our user id, but we read it safely by
-        // decoding the payload (without validating it — the server is the
-        // source of truth on every API call).
-        const payload = decodeJwtPayload(res.data.accessToken);
-        if (payload) {
+      const token = await refreshToken();
+      const payload = token ? decodeJwtPayload(token) : null;
+      if (payload) {
+        const profile = await fetchMe().catch(() => null);
+        if (profile && !cancelled) {
           setUser({
-            id: payload.userId,
-            email: '',
-            name: '',
+            id: profile.id,
+            email: profile.email,
+            name: profile.name,
             locale: payload.locale,
-            isAdmin: payload.isAdmin,
+            isAdmin: profile.isAdmin,
           });
         }
-      } catch {
-        // No valid refresh cookie — the user is logged out.
-      } finally {
-        if (!cancelled) setLoading(false);
       }
+      if (!cancelled) setLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -64,13 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode; }) {
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
-    } catch {
-      // Ignore — we clear local state regardless.
-    }
+    } catch { }
     setAccessToken(null);
     setUser(null);
   }, []);
 
+  // memoized so consumers of useAuth() don't re-render on every AuthProvider
+  // render — only when one of these four actually changes
   const value = useMemo<AuthContextValue>(
     () => ({ user, loading, login, logout }),
     [user, loading, login, logout]
@@ -79,27 +83,31 @@ export function AuthProvider({ children }: { children: ReactNode; }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * Reads the current session. Throws outside {@link AuthProvider} so callers
+ * can destructure `{ user, ... }` directly instead of null-checking a context
+ * that should never actually be absent, given `App.tsx`'s tree.
+ */
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth måste användas inom <AuthProvider>');
+  if (!ctx) throw new Error('useAuth within <AuthProvider>');
   return ctx;
 }
 
-interface JwtPayload {
-  userId: string;
-  locale: AuthUser['locale'];
-  isAdmin: boolean;
-}
-
-function decodeJwtPayload(token: string): JwtPayload | null {
+/**
+ * Reads a JWT's claims without verifying its signature — safe here only
+ * because the result is used purely to pre-populate UI state optimistically.
+ * The actual security boundary is the backend's `verifyAccessToken`, checked
+ * against the real secret on every API call; a forged token decoded here
+ * grants nothing, since no backend route trusts this function's output.
+ */
+function decodeJwtPayload(token: string): AccessTokenPayload | null {
   try {
     const base64 = token.split('.')[1];
     if (!base64) return null;
     const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json) as JwtPayload;
+    return JSON.parse(json) as AccessTokenPayload;
   } catch {
     return null;
   }
 }
-
-export { getAccessToken };

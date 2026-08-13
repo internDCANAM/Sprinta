@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type SubmitEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
@@ -61,9 +61,7 @@ export function DealDetailPage() {
             onClick={() => setTab(t.id)}
             className={clsx(
               'flex-1 whitespace-nowrap rounded-md px-3 py-2 text-sm transition',
-              tab === t.id
-                ? 'bg-forest-700 text-white'
-                : 'text-forest-900/70 hover:bg-forest-50'
+              tab === t.id ? 'bg-forest-700 text-white' : 'text-forest-900/70 hover:bg-forest-50'
             )}
           >
             {t.label}
@@ -105,17 +103,12 @@ function OverviewTab({ dealId }: { dealId: string; }) {
           </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-forest-200">
-          <div
-            className="h-full bg-forest-700"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-forest-700" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
       <ol className="space-y-3">
-        {data.map((e) => (
-          <TimelineItem key={e.id} event={e} />
-        ))}
+        {data.map((e) => <TimelineItem key={e.id} event={e} />)}
       </ol>
     </div>
   );
@@ -129,9 +122,7 @@ function TimelineItem({ event }: { event: DealEvent; }) {
         <span
           className={clsx(
             'h-3 w-3 rounded-full border-2',
-            done
-              ? 'border-forest-700 bg-forest-700'
-              : 'border-forest-500 bg-white'
+            done ? 'border-forest-700 bg-forest-700' : 'border-forest-500 bg-white'
           )}
         />
         <span className="mt-1 flex-1 w-px bg-forest-200" />
@@ -141,13 +132,9 @@ function TimelineItem({ event }: { event: DealEvent; }) {
         <p className="text-xs text-forest-900/60">
           {event.actualDate
             ? `Genomfört ${formatDate(event.actualDate)}`
-            : event.plannedDate
-              ? `Planerat ${formatDate(event.plannedDate)}`
-              : 'Ej daterat'}
+            : event.plannedDate ? `Planerat ${formatDate(event.plannedDate)}` : 'Ej daterat'}
         </p>
-        {event.note && (
-          <p className="mt-1 text-sm text-forest-900/80">{event.note}</p>
-        )}
+        {event.note && <p className="mt-1 text-sm text-forest-900/80">{event.note}</p>}
       </div>
     </li>
   );
@@ -164,14 +151,8 @@ function EconomyTab({ dealId }: { dealId: string; }) {
   });
 
   const totals = useMemo(() => {
-    const gross = (timber.data ?? []).reduce(
-      (s: number, p: TimberPost) => s + p.grossMinor,
-      0
-    );
-    const cost = (costs.data ?? []).reduce(
-      (s: number, c: DealCost) => s + c.amountMinor,
-      0
-    );
+    const gross = (timber.data ?? []).reduce( (s: number, p: TimberPost) => s + p.grossMinor, 0 );
+    const cost = (costs.data ?? []).reduce( (s: number, c: DealCost) => s + c.amountMinor, 0 );
     return { gross, cost, net: gross - cost };
   }, [timber.data, costs.data]);
 
@@ -198,10 +179,7 @@ function EconomyTab({ dealId }: { dealId: string; }) {
               </thead>
               <tbody>
                 {timber.data!.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="border-t border-forest-200 align-top"
-                  >
+                  <tr key={p.id} className="border-t border-forest-200 align-top" >
                     <td className="px-3 py-2">{p.assortment}</td>
                     <td className="px-3 py-2 text-right">
                       {formatNumber(p.volumeM3)}
@@ -284,7 +262,7 @@ function MessagesTab({ dealId }: { dealId: string; }) {
     },
   });
 
-  function submit(e: FormEvent) {
+  function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmed = body.trim();
     if (!trimmed) return;
@@ -301,11 +279,7 @@ function MessagesTab({ dealId }: { dealId: string; }) {
           <p className="text-sm text-forest-900/60">Inga meddelanden ännu.</p>
         ) : (
           messages.data!.map((m: Message) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              own={m.senderId === user?.id}
-            />
+            <MessageBubble key={m.id} message={m} own={m.senderId === user?.id} />
           ))
         )}
       </div>
@@ -332,18 +306,11 @@ function MessageBubble({ message, own }: { message: Message; own: boolean; }) {
       <div
         className={clsx(
           'max-w-[80%] rounded-2xl px-3 py-2 text-sm',
-          own
-            ? 'bg-forest-700 text-white'
-            : 'border border-forest-200 bg-white text-forest-900'
+          own ? 'bg-forest-700 text-white' : 'border border-forest-200 bg-white text-forest-900'
         )}
       >
         <p className="whitespace-pre-wrap">{message.body}</p>
-        <p
-          className={clsx(
-            'mt-1 text-[10px]',
-            own ? 'text-white/70' : 'text-forest-900/50'
-          )}
-        >
+        <p className={clsx( 'mt-1 text-[10px]', own ? 'text-white/70' : 'text-forest-900/50' )} >
           {message.sender.name} · {formatDateTime(message.createdAt)}
         </p>
       </div>

@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
-import { ZodError } from 'zod';
+import { flattenError, ZodError } from 'zod';
 import { ErrorCode, type ApiErrorBody } from '../dto/error.js';
 import { logger } from '../lib/logger.js';
+import { invalidCsrfTokenError } from '../middleware/csrf.middleware.js';
 
 export interface HttpError extends Error {
   readonly statusCode: number;
@@ -56,9 +57,7 @@ type AsyncHandler<TReq extends Request = Request> = (
  */
 export const asyncHandler =
   <TReq extends Request = Request>(fn: AsyncHandler<TReq>): RequestHandler =>
-    (req, res, next) => {
-      Promise.resolve(fn(req as TReq, res, next)).catch(next);
-    };
+    (req, res, next) => { Promise.resolve(fn(req as TReq, res, next)).catch(next); };
 
 /**
  * The single place an {@link HttpError} becomes a response body, typed as
@@ -87,15 +86,11 @@ export function notFoundHandler(req: Request, res: Response): void {
  * now parsed inline in its handler, so this one mapping covers every parse site.
  */
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
-  const error =
-    err instanceof ZodError
-      ? badRequest(req, req.t.input.validationFailed, err.flatten().fieldErrors)
-      : err;
-
-  if (isHttpError(error)) {
-    res.status(error.statusCode).json(toErrorBody(error));
-    return;
-  }
+  let error: unknown = err;
+  if (err instanceof ZodError) {
+    error = badRequest(req, req.t.input.validationFailed, flattenError(err).fieldErrors);
+  } else if (err === invalidCsrfTokenError) error = forbidden(req);
+  if (isHttpError(error)) { res.status(error.statusCode).json(toErrorBody(error)); return; }
 
   logger.error('', {
     path: req.path,

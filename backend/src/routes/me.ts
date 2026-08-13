@@ -36,10 +36,7 @@ async function editProfile(req: AuthenticatedRequest): Promise<UserProfile> {
     if (taken) throw conflict(req, req.t.input.emailTaken);
   }
 
-  const data = {
-    ...input,
-    ...(bankAccount !== undefined ? bankAccountData(bankAccount) : {}),
-  };
+  const data = { ...input, ...(bankAccount !== undefined ? bankAccountData(bankAccount) : {}) };
 
   const updated = await prisma.user.update({ where: { id: req.user.userId }, data });
   await auditChanges({

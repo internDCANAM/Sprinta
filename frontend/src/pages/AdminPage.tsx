@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DealType } from '@sprintaiso/api-types';
 import { createAdminDeal, fetchAdminDeals, fetchAdminUsers, fetchDomainConfig } from '../api/endpoints';
@@ -41,9 +41,7 @@ export function AdminPage() {
         </Button>
       </header>
 
-      {!isPageLoading && (
-        <AdminSummary ownerCount={owners.length} dealCount={deals.length} />
-      )}
+      {!isPageLoading && <AdminSummary ownerCount={owners.length} dealCount={deals.length} />}
 
       <IntegrationStatus />
 
@@ -51,18 +49,14 @@ export function AdminPage() {
         owners={owners}
         isLoading={usersQuery.isLoading}
         error={usersQuery.error}
-        onRetry={() => {
-          void usersQuery.refetch();
-        }}
+        onRetry={() => { void usersQuery.refetch(); }}
       />
 
       <DealsSection
         deals={deals}
         isLoading={dealsQuery.isLoading}
         error={dealsQuery.error}
-        onRetry={() => {
-          void dealsQuery.refetch();
-        }}
+        onRetry={() => { void dealsQuery.refetch(); }}
       />
 
       {showCreateDeal && canCreateDeal && (
@@ -91,12 +85,7 @@ function AdminSummary({ ownerCount, dealCount }: { ownerCount: number; dealCount
   );
 }
 
-function OwnersSection({
-  owners,
-  isLoading,
-  error,
-  onRetry,
-}: {
+function OwnersSection({ owners, isLoading, error, onRetry }: {
   owners: AdminUsers;
   isLoading: boolean;
   error: unknown;
@@ -167,12 +156,7 @@ function OwnersSection({
   );
 }
 
-function DealsSection({
-  deals,
-  isLoading,
-  error,
-  onRetry,
-}: {
+function DealsSection({ deals, isLoading, error, onRetry }: {
   deals: AdminDeals;
   isLoading: boolean;
   error: unknown;
@@ -283,7 +267,7 @@ function CreateDealModal({ onClose }: { onClose: () => void; }) {
     },
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const cleanExternalId = externalId.trim();
@@ -311,25 +295,17 @@ function CreateDealModal({ onClose }: { onClose: () => void; }) {
   const owners = (usersQuery.data?.data ?? []).filter((user) => !user.isAdmin);
 
   const isFormUnavailable =
-    usersQuery.isLoading ||
-    configQuery.isLoading ||
-    usersQuery.isError ||
-    configQuery.isError;
+    usersQuery.isLoading || configQuery.isLoading || usersQuery.isError || configQuery.isError;
 
   const isSubmitDisabled =
-    createDealMutation.isPending ||
-    isFormUnavailable ||
-    !ownerId ||
-    !externalId.trim() ||
+    createDealMutation.isPending || isFormUnavailable || !ownerId || !externalId.trim() ||
     !title.trim();
 
   return (
     <div
       className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 px-4 pb-6 pt-20 sm:items-center"
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div
         role="dialog"

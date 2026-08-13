@@ -8,10 +8,7 @@ import { ErrorMessage } from '../components/ErrorMessage';
 import { formatDate, formatMoney } from '../lib/format';
 
 export function PaymentsPage() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['payments'],
-    queryFn: fetchPayments,
-  });
+  const { data, isLoading, error } = useQuery({ queryKey: ['payments'], queryFn: fetchPayments });
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorMessage error={error} />;

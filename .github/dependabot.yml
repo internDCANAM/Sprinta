@@ -1,0 +1,47 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+        interval: "weekly"
+        day: "monday"
+        time: "05:57"
+        timezone: "Europe/Stockholm"
+    groups:
+      dev-tooling:
+        patterns: ["eslint*", "typescript-eslint*", "globals*"]
+
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+        interval: "weekly"
+        day: "monday"
+        time: "05:57"
+        timezone: "Europe/Stockholm"
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+        interval: "weekly"
+        day: "monday"
+        time: "05:57"
+        timezone: "Europe/Stockholm"
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+        interval: "weekly"
+        day: "monday"
+        time: "05:57"
+        timezone: "Europe/Stockholm"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+        interval: "weekly"
+        day: "monday"
+        time: "05:57"
+        timezone: "Europe/Stockholm"
+    groups:
+      actions:
+        patterns: ["*"]

@@ -6,6 +6,4 @@ export const configRouter = Router();
 
 configRouter.use(authMiddleware);
 
-configRouter.get('/', (_req, res) => {
-  res.json(domainConfig());
-});
+configRouter.get('/', (_req, res) => { res.json(domainConfig()); });

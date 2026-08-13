@@ -28,7 +28,7 @@ export function buildPagination(page: number, limit: number, total: number): Pag
 
 export async function paginate<T>(
   query: PaginationQuery,
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  schema: z.ZodType<T, unknown>,
   count: () => Promise<number>,
   find: (skip: number, take: number) => Promise<unknown[]>
 ): Promise<Paginated<T>> {
