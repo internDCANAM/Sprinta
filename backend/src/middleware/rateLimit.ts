@@ -108,6 +108,18 @@ export const refreshRateLimiter = redisRateLimiter({
   message: 'Refresh rate limit exceeded',
 });
 
+// mounts ahead of authMiddleware, which is itself unthrottled work — every
+// request with a junk bearer token costs a jwt verification. keyed on the
+// address because req.user does not exist yet at that point
+export const globalRateLimiter = redisRateLimiter({
+  prefix: 'rl:global:',
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  key: RateLimitKey.IP,
+  eventType: SecurityEventType.GLOBAL_RATE_LIMIT_EXCEEDED,
+  message: 'Global rate limit exceeded',
+});
+
 // shared by every authenticated router. mounts after authMiddleware, which is
 // what puts req.user in place for keyGenerator to read
 export const apiRateLimiter = redisRateLimiter({

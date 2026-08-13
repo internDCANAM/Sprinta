@@ -20,6 +20,7 @@ export const SecurityEventType = {
   REGISTER_RATE_LIMIT_EXCEEDED: 'REGISTER_RATE_LIMIT_EXCEEDED',
   REFRESH_RATE_LIMIT_EXCEEDED: 'REFRESH_RATE_LIMIT_EXCEEDED',
   API_RATE_LIMIT_EXCEEDED: 'API_RATE_LIMIT_EXCEEDED',
+  GLOBAL_RATE_LIMIT_EXCEEDED: 'GLOBAL_RATE_LIMIT_EXCEEDED',
 } as const;
 
 export type SecurityEventType = (typeof SecurityEventType)[keyof typeof SecurityEventType];
