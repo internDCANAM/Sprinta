@@ -79,7 +79,7 @@ beforeAll(async () => {
   server = createServer(createApp());
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1`;
-  const counters = await redis.keys('rl:login:*');
+  const counters = await redis.keys('rl:*');
   if (counters.length) await redis.del(...counters);
 });
 
@@ -388,9 +388,7 @@ test('POST /auth/refresh valid cookie no csrf', async () => {
   expect(okBody.accessToken).toBeTruthy();
 });
 
-// arrangement a cross-site attacker can produces — the browser
-// attaches both cookies on its own, but foreign JS cannot set a request header.
-// the token has to be rejected as a missing header, not just as a missing cookie
+// the browser attaches both cookies on its own, foreign JS cannot set the header
 test('POST /auth/refresh both cookies no csrf header', async () => {
   const { user, password } = await createUser();
   const { cookie, csrfCookie } = await loginWithCookie(user.email, password);
@@ -457,9 +455,7 @@ test('POST /auth/refresh inactive user', async () => {
   expect(response.status).toBe(401);
 });
 
-// logout is the other doubleCsrfProtection route, so it carries the same
-// forced-request risk. a rejected logout must also leave the session intact —
-// silently dropping the token would make this a working denial-of-session
+// a rejected logout must leave the session usable, or forging one logs you out
 test('POST /auth/logout both cookies no csrf header', async () => {
   const { user, password } = await createUser();
   const { cookie, csrfCookie, csrfToken } = await loginWithCookie(user.email, password);
@@ -485,8 +481,7 @@ test('POST /auth/logout both cookies no csrf header', async () => {
   expect(survived.status).toBe(200);
 });
 
-// logout carrying the header revokes the refresh token it was issued with, so
-// spent cookie can't be replayed
+// the spent cookie must not survive the logout that revoked it
 test('POST /auth/logout revokes the refresh token', async () => {
   const { user, password } = await createUser();
   const { cookie, csrfCookie, csrfToken } = await loginWithCookie(user.email, password);

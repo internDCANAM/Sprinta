@@ -24,7 +24,7 @@ async function dealOwnershipLogic(req: Request, _res: Response, next: NextFuncti
   if (!req.user) return next(unauthorized(req));
 
   const id = req.params.id;
-  if (!id) return next(notFound(req, req.t.db.dealNotFound));
+  if (typeof id !== 'string' || !id) return next(notFound(req, req.t.db.dealNotFound));
 
   const deal = await prisma.deal.findUnique({ where: { id } });
   if (!deal) return next(notFound(req, req.t.db.dealNotFound));

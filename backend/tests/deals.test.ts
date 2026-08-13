@@ -57,7 +57,7 @@ beforeAll(async () => {
   server = createServer(createApp());
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1`;
-  const counters = await redis.keys('rl:login:*');
+  const counters = await redis.keys('rl:*');
   if (counters.length) await redis.del(...counters);
 });
 
@@ -138,6 +138,26 @@ test('GET /deals/:id missing', async () => {
   `);
 
   expect(response.status).toBe(404);
+});
+
+// a malformed id is the caller's mistake, not a missing row
+test('GET /deals/:id not a uuid', async () => {
+  const { user, password } = await createUser();
+  const token = await login(user.email, password);
+
+  const response = await fetch(`${baseUrl}/deals/not-a-uuid/events`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = (await response.json()) as { code: string; };
+
+  console.log(`
+    [GET /deals/:id not a uuid]
+    status: ${response.status}
+    body:   ${JSON.stringify(body)}
+  `);
+
+  expect(response.status).toBe(400);
+  expect(body.code).toBe('VALIDATION_ERROR');
 });
 
 // no token at all must be rejected before ownership runs

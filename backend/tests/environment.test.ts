@@ -154,7 +154,7 @@ beforeAll(async () => {
   server = createServer(createApp());
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1`;
-  const counters = await redis.keys('rl:login:*');
+  const counters = await redis.keys('rl:*');
   if (counters.length) await redis.del(...counters);
 
   console.log(`

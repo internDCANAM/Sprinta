@@ -42,12 +42,11 @@ async function createUser(): Promise<{ user: User; password: string; }> {
 
 type Credentials = { accessToken: string; cookies: string; csrfToken: string; };
 
-// logs in via the real endpoint and returns everything a request needs — the
-// bearer token plus the CSRF cookie/header pair every mutating route expects
+// logs in on its own fake IP, and hands back the CSRF pair mutating routes need
 async function login(email: string, password: string): Promise<Credentials> {
   const response = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': faker.internet.ipv4() },
     body: JSON.stringify({ email, password }),
   });
   const body = (await response.json()) as LoginResponse;
@@ -63,8 +62,7 @@ async function login(email: string, password: string): Promise<Credentials> {
   };
 }
 
-// full header set for a mutating request — CSRF is enforced app-wide, so a
-// bearer token alone is not enough on anything but a read
+// a bearer token alone only gets you reads — CSRF applies below /auth
 function authHeaders(creds: Credentials): Record<string, string> {
   return {
     'Content-Type': 'application/json',
@@ -83,7 +81,7 @@ beforeAll(async () => {
   server = createServer(createApp());
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1`;
-  const counters = await redis.keys('rl:login:*');
+  const counters = await redis.keys('rl:*');
   if (counters.length) await redis.del(...counters);
 });
 
@@ -326,4 +324,32 @@ test('rate limits logins', async () => {
   `);
 
   expect(limited.length).toBeGreaterThan(0);
+});
+
+// both reads leave from one address — an IP-keyed counter would show b one lower
+test('api rate limit keyed per user', async () => {
+  const [first, second] = await Promise.all([createUser(), createUser()]);
+  const [credsA, credsB] = await Promise.all([
+    login(first.user.email, first.password),
+    login(second.user.email, second.password),
+  ]);
+
+  const read = (creds: Credentials) =>
+    fetch(`${baseUrl}/me`, { headers: { Authorization: `Bearer ${creds.accessToken}` } });
+
+  const a = await read(credsA);
+  const b = await read(credsB);
+  const remaining = (r: Response) =>
+    Number(/remaining=(\d+)/.exec(r.headers.get('ratelimit') ?? '')?.[1]);
+
+  console.log(`
+    [api rate limit is keyed per user]
+    a: ${a.headers.get('ratelimit')}
+    b: ${b.headers.get('ratelimit')}
+  `);
+
+  expect(a.status).toBe(200);
+  expect(b.status).toBe(200);
+  expect(remaining(a)).toBeGreaterThan(0);
+  expect(remaining(b)).toBe(remaining(a));
 });

@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { apiRateLimiter } from '../middleware/rateLimit.js';
 import { dealOwnershipMiddleware, type DealRequest } from '../middleware/ownership.js';
+import { Source, validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/http.js';
+import { uuidParamsSchema } from '../dto/params.js';
 import type { AuthenticatedRequest } from '../utils/auth.js';
 import { paginate, paginationQuerySchema, type Collection, type Paginated } from '../dto/pagination.js';
 import { dealCostSchema, dealDetailInclude, dealDetailSchema, dealEventSchema, dealSummaryInclude, dealSummarySchema, documentSummarySchema, messageInclude, messageInputSchema, messageSchema, timberPostSchema, type DealCost, type DealDetail, type DealEvent, type DealSummary, type DocumentSummary, type Message, type TimberPost } from '../dto/deal.js';
@@ -87,8 +90,10 @@ async function postMessage(req: DealRequest): Promise<Message> {
 }
 
 export const dealsRouter = Router();
-dealsRouter.use(authMiddleware);
+dealsRouter.use(authMiddleware, apiRateLimiter);
 dealsRouter.get('/', asyncHandler<AuthenticatedRequest>(async (req, res) => res.json(await listDeals(req))));
+// runs for every /:id path below, so a malformed id never reaches prisma
+dealsRouter.use('/:id', validate(uuidParamsSchema, Source.PARAMS));
 dealsRouter.get('/:id', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await readDeal(req))));
 dealsRouter.get('/:id/events', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listEvents(req))));
 dealsRouter.get('/:id/timber', dealOwnershipMiddleware, asyncHandler<DealRequest>(async (req, res) => res.json(await listTimberPosts(req))));

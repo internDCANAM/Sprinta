@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ZodType } from 'zod';
 
-const Source = { BODY: 'body', QUERY: 'query', PARAMS: 'params' } as const;
-
-type Source = (typeof Source)[keyof typeof Source];
+export const Source = { BODY: 'body', QUERY: 'query', PARAMS: 'params' } as const;
+export type Source = (typeof Source)[keyof typeof Source];
 
 /**
  * Nothing catches here: Express routes a synchronous throw from a middleware
@@ -18,7 +17,7 @@ export function validate<T>(schema: ZodType<T>, source: Source = Source.BODY) {
         req.body = parsed;
         break;
       case Source.QUERY:
-        req.query = parsed as typeof req.query;
+        Object.defineProperty(req, 'query', { value: parsed, configurable: true });
         break;
       case Source.PARAMS:
         req.params = parsed as typeof req.params;

@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { loginRateLimiter, registerRateLimiter } from '../middleware/rateLimit.js';
+import { loginRateLimiter, refreshRateLimiter, registerRateLimiter } from '../middleware/rateLimit.js';
 import { asyncHandler, conflict, unauthorized } from '../utils/http.js';
 import { REFRESH_COOKIE_MAX_AGE_MS, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH, isRefreshTokenValid, revokeRefreshToken, signAccessToken, signRefreshToken, storeRefreshToken, verifyRefreshToken } from '../utils/auth.js';
 import { CSRF_COOKIE_NAME, doubleCsrfProtection, issueCsrfToken } from '../middleware/csrf.middleware.js';
@@ -116,5 +116,5 @@ async function logout(req: Request, res: Response): Promise<void> {
 export const authRouter = Router();
 authRouter.post('/register', registerRateLimiter, asyncHandler(async (req, res) => res.status(201).json(await register(req))));
 authRouter.post('/login', loginRateLimiter, asyncHandler(async (req, res) => res.json(await login(req, res))));
-authRouter.post('/refresh', doubleCsrfProtection, asyncHandler(async (req, res) => res.json(await refresh(req, res))));
-authRouter.post('/logout', doubleCsrfProtection, asyncHandler(async (req, res) => { await logout(req, res); res.status(204).end(); }));
+authRouter.post('/refresh', refreshRateLimiter, doubleCsrfProtection, asyncHandler(async (req, res) => res.json(await refresh(req, res))));
+authRouter.post('/logout', refreshRateLimiter, doubleCsrfProtection, asyncHandler(async (req, res) => { await logout(req, res); res.status(204).end(); }));

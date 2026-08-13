@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { apiRateLimiter } from '../middleware/rateLimit.js';
 import { asyncHandler, conflict, unauthorized } from '../utils/http.js';
 import { encrypt, maskBankAccount } from '../lib/crypto.js';
 import { auditChanges } from '../utils/securityEvents.js';
@@ -103,7 +104,7 @@ async function deactivateAccount(req: AuthenticatedRequest): Promise<UserProfile
 }
 
 export const meRouter = Router();
-meRouter.use(authMiddleware);
+meRouter.use(authMiddleware, apiRateLimiter);
 meRouter.get('/', asyncHandler<AuthenticatedRequest>(async (req, res) => res.json(await readProfile(req))));
 meRouter.patch('/', asyncHandler<AuthenticatedRequest>(async (req, res) => res.json(await editProfile(req))));
 meRouter.put('/bank-account', asyncHandler<AuthenticatedRequest>(async (req, res) => res.json(await editBankAccount(req))));

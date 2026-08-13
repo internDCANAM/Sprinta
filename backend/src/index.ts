@@ -6,7 +6,12 @@ import { redis } from './lib/redis.js';
 
 const app = createApp();
 
-const server = app.listen(env.PORT, () => {
+// express 5 hands bind failures to this callback instead of throwing them
+const server = app.listen(env.PORT, (error?: Error) => {
+  if (error) {
+    logger.error(`Cannot bind port ${env.PORT}`, { message: error.message });
+    process.exit(1);
+  }
   logger.info(`Backend listening on port ${env.PORT}`, { env: env.NODE_ENV });
 });
 
